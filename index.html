@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PokéCards — Colección de Cartas Pokémon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-pattern"></div>
+
+  <header class="header">
+    <div class="header__inner">
+      <div class="logo">
+        <span class="logo__icon">⚡</span>
+        <div>
+          <h1>PokéCards</h1>
+          <p>Tu colección digital de cartas Pokémon</p>
+        </div>
+      </div>
+      <div class="stats" id="stats">
+        <span><strong id="card-count">0</strong> cartas</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="filters">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="search" id="search" placeholder="Buscar por nombre..." autocomplete="off">
+      </div>
+
+      <div class="filter-group">
+        <label for="type-filter">Tipo</label>
+        <select id="type-filter">
+          <option value="">Todos los tipos</option>
+          <option value="Fire">Fuego</option>
+          <option value="Water">Agua</option>
+          <option value="Grass">Planta</option>
+          <option value="Lightning">Eléctrico</option>
+          <option value="Psychic">Psíquico</option>
+          <option value="Fighting">Lucha</option>
+          <option value="Darkness">Siniestro</option>
+          <option value="Metal">Metálico</option>
+          <option value="Dragon">Dragón</option>
+          <option value="Colorless">Incoloro</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="rarity-filter">Rareza</label>
+        <select id="rarity-filter">
+          <option value="">Todas</option>
+          <option value="Common">Común</option>
+          <option value="Uncommon">Poco común</option>
+          <option value="Rare">Rara</option>
+          <option value="Rare Holo">Rara Holo</option>
+          <option value="Rare Holo V">V</option>
+          <option value="Rare Holo VMAX">VMAX</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="loading" id="loading">
+      <div class="pokeball-loader"></div>
+      <p>Cargando cartas...</p>
+    </div>
+
+    <div class="cards-grid" id="cards-grid"></div>
+
+    <p class="empty-state hidden" id="empty-state">
+      No se encontraron cartas con esos filtros.
+    </p>
+  </main>
+
+  <div class="modal hidden" id="modal" role="dialog" aria-modal="true">
+    <div class="modal__backdrop" id="modal-backdrop"></div>
+    <div class="modal__content">
+      <button class="modal__close" id="modal-close" aria-label="Cerrar">&times;</button>
+      <div class="modal__body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>Datos e imágenes de cartas © The Pokémon Company / Nintendo / Creatures / GAME FREAK</p>
+    <p class="footer__note">Proyecto educativo — imágenes vía Pokémon TCG API</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

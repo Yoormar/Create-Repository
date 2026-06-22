@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Botica Giudamy — Al servicio de tu salud | Huancayo</title>
+  <meta name="description" content="Botica Giudamy en Huancayo. Medicamentos, productos de salud y atención personalizada. Al servicio de tu salud.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="header" id="inicio">
+    <div class="header__inner">
+      <a href="#inicio" class="brand">
+        <img src="assets/logo.png" alt="Botica Giudamy" class="brand__logo">
+        <div class="brand__text">
+          <span class="brand__name">Botica Giudamy</span>
+          <span class="brand__slogan">Al servicio de tu salud</span>
+        </div>
+      </a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menú">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav" id="nav">
+        <a href="#inicio">Inicio</a>
+        <a href="#servicios">Servicios</a>
+        <a href="#catalogo">Catálogo</a>
+        <a href="#admin">Subir catálogo</a>
+        <a href="#contacto">Contacto</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <img src="assets/hero.png" alt="Interior de Botica Giudamy en Huancayo" class="hero__bg">
+    <div class="hero__overlay"></div>
+    <div class="hero__content">
+      <span class="hero__location">📍 Huancayo</span>
+      <h1>Tu salud, nuestra prioridad</h1>
+      <p>Medicamentos, productos de cuidado personal y asesoría farmacéutica con la confianza de siempre.</p>
+      <div class="hero__actions">
+        <a href="#catalogo" class="btn btn--primary">Ver catálogo</a>
+        <a href="#contacto" class="btn btn--outline">Contáctanos</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" id="servicios">
+    <div class="container">
+      <h2 class="section-title">¿Por qué elegirnos?</h2>
+      <p class="section-subtitle">Atención cercana y productos de calidad para ti y tu familia</p>
+      <div class="features__grid">
+        <article class="feature-card">
+          <div class="feature-card__icon">💊</div>
+          <h3>Medicamentos</h3>
+          <p>Amplio stock de genéricos y de marca, con control de calidad y caducidad.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-card__icon">🩺</div>
+          <h3>Asesoría profesional</h3>
+          <p>Personal capacitado para orientarte en el uso correcto de tus tratamientos.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-card__icon">🚚</div>
+          <h3>Pedidos rápidos</h3>
+          <p>Consulta disponibilidad y realiza tu pedido por WhatsApp de forma sencilla.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-card__icon">❤️</div>
+          <h3>Cerca de ti</h3>
+          <p>Ubicados en Huancayo, listos para atenderte con calidez y confianza.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="catalog" id="catalogo">
+    <div class="container">
+      <div class="catalog__header">
+        <div>
+          <h2 class="section-title">Catálogo de productos</h2>
+          <p class="section-subtitle">Explora nuestros productos y solicita tu pedido</p>
+        </div>
+        <span class="catalog__count"><strong id="product-count">0</strong> productos</span>
+      </div>
+
+      <div class="catalog__toolbar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="search" id="search" placeholder="Buscar producto..." autocomplete="off">
+        </div>
+        <select id="category-filter">
+          <option value="">Todas las categorías</option>
+        </select>
+        <select id="sort-filter">
+          <option value="name-asc">Nombre A-Z</option>
+          <option value="name-desc">Nombre Z-A</option>
+          <option value="price-asc">Precio menor</option>
+          <option value="price-desc">Precio mayor</option>
+        </select>
+      </div>
+
+      <div class="products-grid" id="products-grid"></div>
+      <p class="empty-state hidden" id="empty-state">No se encontraron productos con esos filtros.</p>
+    </div>
+  </section>
+
+  <section class="cart-bar hidden" id="cart-bar">
+    <div class="container cart-bar__inner">
+      <span><strong id="cart-count">0</strong> productos en tu pedido</span>
+      <span class="cart-bar__total">Total: <strong id="cart-total">S/ 0.00</strong></span>
+      <button class="btn btn--primary btn--sm" id="whatsapp-order">Pedir por WhatsApp</button>
+      <button class="btn btn--ghost btn--sm" id="clear-cart">Vaciar</button>
+    </div>
+  </section>
+
+  <section class="admin" id="admin">
+    <div class="container">
+      <h2 class="section-title">Administrar catálogo</h2>
+      <p class="section-subtitle">Sube tu archivo de productos en CSV o JSON para actualizar la tienda</p>
+
+      <div class="admin__grid">
+        <div class="upload-panel">
+          <div class="upload-zone" id="upload-zone">
+            <div class="upload-zone__icon">📁</div>
+            <p><strong>Arrastra tu archivo aquí</strong> o haz clic para seleccionar</p>
+            <p class="upload-zone__hint">Formatos: .csv, .json</p>
+            <input type="file" id="file-input" accept=".csv,.json" hidden>
+          </div>
+          <div class="upload-actions">
+            <button class="btn btn--outline" id="download-template">Descargar plantilla CSV</button>
+            <button class="btn btn--ghost" id="export-catalog">Exportar catálogo actual</button>
+            <button class="btn btn--ghost btn--danger" id="reset-catalog">Restaurar catálogo demo</button>
+          </div>
+          <div class="upload-status hidden" id="upload-status"></div>
+        </div>
+
+        <div class="upload-help">
+          <h3>Formato del archivo CSV</h3>
+          <p>La primera fila debe contener los encabezados. Columnas requeridas:</p>
+          <code>nombre, descripcion, precio, categoria, stock, imagen</code>
+          <ul>
+            <li><strong>nombre</strong> — Nombre del producto (obligatorio)</li>
+            <li><strong>descripcion</strong> — Descripción breve</li>
+            <li><strong>precio</strong> — Precio en soles (ej: 12.50)</li>
+            <li><strong>categoria</strong> — Ej: Medicamentos, Vitaminas, Cuidado personal</li>
+            <li><strong>stock</strong> — Cantidad disponible (número)</li>
+            <li><strong>imagen</strong> — URL de imagen (opcional)</li>
+          </ul>
+          <h3>Ejemplo JSON</h3>
+          <pre>[
+  {
+    "nombre": "Paracetamol 500mg",
+    "descripcion": "Caja x 20 tabletas",
+    "precio": 5.50,
+    "categoria": "Medicamentos",
+    "stock": 100,
+    "imagen": ""
+  }
+]</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact" id="contacto">
+    <div class="container contact__grid">
+      <div class="contact__info">
+        <h2 class="section-title">Contáctanos</h2>
+        <p class="section-subtitle">Estamos en Huancayo para atenderte</p>
+        <ul class="contact__list">
+          <li>
+            <span>📍</span>
+            <div>
+              <strong>Ubicación</strong>
+              <p>Huancayo, Perú</p>
+            </div>
+          </li>
+          <li>
+            <span>📞</span>
+            <div>
+              <strong>Teléfono / WhatsApp</strong>
+              <p><a href="https://wa.me/51999999999" target="_blank" rel="noopener">+51 999 999 999</a></p>
+            </div>
+          </li>
+          <li>
+            <span>🕐</span>
+            <div>
+              <strong>Horario</strong>
+              <p>Lun - Sáb: 8:00 am - 10:00 pm</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <form class="contact__form" id="contact-form">
+        <h3>Envíanos un mensaje</h3>
+        <label>
+          Nombre
+          <input type="text" name="nombre" required placeholder="Tu nombre">
+        </label>
+        <label>
+          Teléfono
+          <input type="tel" name="telefono" placeholder="+51 999 999 999">
+        </label>
+        <label>
+          Mensaje
+          <textarea name="mensaje" rows="4" required placeholder="¿En qué podemos ayudarte?"></textarea>
+        </label>
+        <button type="submit" class="btn btn--primary">Enviar por WhatsApp</button>
+      </form>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <img src="assets/logo.png" alt="Botica Giudamy" class="footer__logo">
+      <p>&copy; 2026 Botica Giudamy — Al servicio de tu salud</p>
+      <p class="footer__note">Proyecto 2 · Huancayo, Perú</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
