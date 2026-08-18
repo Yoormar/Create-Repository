@@ -1,0 +1,517 @@
+<style>
+/* =========================================================
+   SISTEMA OPERATIVO V12 UI
+========================================================= */
+
+.v12-auto-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid #bbf7d0;
+  border-radius: 9px;
+  background: #f0fdf4;
+  color: #166534;
+  box-sizing: border-box;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.v12-auto-control input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #16a34a;
+  cursor: pointer;
+}
+
+.v12-auto-control.v12-activo {
+  border-color: #86efac;
+  background: #dcfce7;
+}
+
+.v12-auto-contador {
+  min-width: 36px;
+  color: #475569;
+  font-size: 10px;
+  text-align: center;
+}
+
+.v12-chip-pendientes {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.v12-auto-procesando {
+  opacity: .65;
+  pointer-events: none;
+}
+
+.tarjeta-kpi-dynamic {
+  border-top-color: #7c3aed !important;
+}
+
+.barra-valor-dynamic {
+  background: #7c3aed !important;
+}
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  if (window.__SISTEMA_OPERATIVO_V12_UI__) {
+    return;
+  }
+
+  window.__SISTEMA_OPERATIVO_V12_UI__ = true;
+
+  const CLAVE_AUTO = 'GESTION_TICKETS_AUTO_V12';
+  const CICLO_MS = 20 * 1000;
+
+  let procesando = false;
+  let temporizadorAuto = null;
+  let temporizadorContador = null;
+  let proximaEjecucion = Date.now() + CICLO_MS;
+  let ultimaRespuesta = null;
+
+  function v12(id) {
+    return document.getElementById(id);
+  }
+
+  function esAdminV12() {
+    return String(estado?.sesion?.rol || '')
+      .trim()
+      .toUpperCase() === 'ADMIN';
+  }
+
+  function filtrosV12() {
+    if (typeof obtenerFiltrosDashboard === 'function') {
+      return obtenerFiltrosDashboard();
+    }
+
+    return {
+      mes: v12('dashMes')?.value || '',
+      anio: v12('dashAnio')?.value || '',
+      plataforma: v12('dashPlataforma')?.value || '',
+      asesor: v12('dashAsesor')?.value || '__GLOBAL__'
+    };
+  }
+
+  function asegurarDynamicV12() {
+    const selector = v12('dashPlataforma');
+
+    if (
+      selector &&
+      !Array.from(selector.options).some(opcion => opcion.value === 'DYNAMIC')
+    ) {
+      const opcion = document.createElement('option');
+      opcion.value = 'DYNAMIC';
+      opcion.textContent = 'Dynamic';
+      selector.appendChild(opcion);
+    }
+
+    if (!v12('dashAtendidosDynamic')) {
+      const portal = v12('dashAtendidosPortal');
+      const tarjetaPortal = portal?.closest('.tarjeta-kpi');
+
+      if (tarjetaPortal) {
+        const tarjeta = document.createElement('article');
+        tarjeta.className = 'tarjeta tarjeta-kpi tarjeta-kpi-dynamic';
+        tarjeta.innerHTML = `
+          <span>Atendidos Dynamic</span>
+          <strong id="dashAtendidosDynamic">0</strong>
+        `;
+        tarjetaPortal.insertAdjacentElement('afterend', tarjeta);
+      }
+    }
+
+    if (!v12('dashAsesorDynamic')) {
+      const portal = v12('dashAsesorPortal');
+      const filaPortal = portal?.closest('.barra-item');
+
+      if (filaPortal) {
+        const fila = document.createElement('div');
+        fila.className = 'barra-item';
+        fila.innerHTML = `
+          <div class="barra-etiqueta">
+            <span>Dynamic</span>
+            <strong id="dashAsesorDynamic">0</strong>
+          </div>
+          <div class="barra-fondo">
+            <div id="barraAsesorDynamic" class="barra-valor barra-valor-dynamic"></div>
+          </div>
+        `;
+        filaPortal.insertAdjacentElement('afterend', fila);
+      }
+    }
+
+    const cabeceraDiaria = document.querySelector(
+      '#vistaDiariaDashboard .tabla-dashboard thead tr'
+    );
+
+    if (
+      cabeceraDiaria &&
+      !cabeceraDiaria.querySelector('[data-v12-dynamic="SI"]')
+    ) {
+      const th = document.createElement('th');
+      th.dataset.v12Dynamic = 'SI';
+      th.textContent = 'Atendidos Dynamic';
+      cabeceraDiaria.insertBefore(th, cabeceraDiaria.lastElementChild);
+    }
+  }
+
+  function asegurarAutomaticoV12() {
+    const boton = v12('botonProcesarAutomaticos');
+    if (!boton) return;
+
+    if (!v12('checkAutomaticoV12')) {
+      const etiqueta = document.createElement('label');
+      etiqueta.id = 'controlAutomaticoV12';
+      etiqueta.className = 'v12-auto-control';
+      etiqueta.innerHTML = `
+        <input id="checkAutomaticoV12" type="checkbox">
+        <span>Automático</span>
+        <span id="contadorAutomaticoV12" class="v12-auto-contador">00:20</span>
+      `;
+
+      boton.insertAdjacentElement('beforebegin', etiqueta);
+
+      const chip = document.createElement('span');
+      chip.id = 'pendientesV12';
+      chip.className = 'v12-chip-pendientes';
+      chip.textContent = 'Z 0 · D 0';
+      etiqueta.insertAdjacentElement('afterend', chip);
+    }
+
+    boton.textContent = 'Procesar pendientes';
+    boton.title = 'Procesa pendientes Zendesk y Dynamic';
+
+    const check = v12('checkAutomaticoV12');
+
+    if (check && check.dataset.v12Vinculado !== 'SI') {
+      check.dataset.v12Vinculado = 'SI';
+      check.checked = localStorage.getItem(CLAVE_AUTO) === 'SI';
+
+      check.addEventListener('change', () => {
+        localStorage.setItem(CLAVE_AUTO, check.checked ? 'SI' : 'NO');
+        configurarAutomaticoV12();
+      });
+    }
+
+    if (boton.dataset.v12Vinculado !== 'SI') {
+      boton.dataset.v12Vinculado = 'SI';
+
+      boton.addEventListener(
+        'click',
+        evento => {
+          evento.preventDefault();
+          evento.stopImmediatePropagation();
+          procesarPendientesV12UI(true);
+        },
+        true
+      );
+    }
+  }
+
+  function actualizarContadorV12() {
+    const contador = v12('contadorAutomaticoV12');
+    if (!contador) return;
+
+    if (procesando) {
+      contador.textContent = '...';
+      return;
+    }
+
+    const check = v12('checkAutomaticoV12');
+    if (!check?.checked) {
+      contador.textContent = 'OFF';
+      return;
+    }
+
+    const segundos = Math.max(
+      0,
+      Math.ceil((proximaEjecucion - Date.now()) / 1000)
+    );
+
+    contador.textContent = `00:${String(segundos).padStart(2, '0')}`;
+  }
+
+  function configurarAutomaticoV12() {
+    const check = v12('checkAutomaticoV12');
+    const control = v12('controlAutomaticoV12');
+    const botonActualizarDashboard = v12('botonActualizarDashboard');
+
+    window.clearInterval(temporizadorAuto);
+    window.clearInterval(temporizadorContador);
+    temporizadorAuto = null;
+    temporizadorContador = null;
+
+    const activo = Boolean(check?.checked);
+
+    control?.classList.toggle('v12-activo', activo);
+
+    /*
+     * Cuando Automatico esta activo ya no es necesario pulsar
+     * Actualizar dashboard para asignar pendientes.
+     */
+    if (botonActualizarDashboard) {
+      botonActualizarDashboard.style.display = activo ? 'none' : '';
+    }
+
+    if (!activo) {
+      actualizarContadorV12();
+      return;
+    }
+
+    proximaEjecucion = Date.now() + CICLO_MS;
+    actualizarContadorV12();
+
+    /* Ejecuta una revision inmediatamente. */
+    window.setTimeout(() => procesarPendientesV12UI(false), 250);
+
+    temporizadorAuto = window.setInterval(() => {
+      procesarPendientesV12UI(false);
+    }, CICLO_MS);
+
+    temporizadorContador = window.setInterval(
+      actualizarContadorV12,
+      1000
+    );
+  }
+
+  function pintarDiarioDynamicV12(resultado) {
+    asegurarDynamicV12();
+
+    const mapa = {};
+    (resultado?.diarioDynamic || []).forEach(item => {
+      mapa[String(item.fecha || '')] = Number(item.total || 0);
+    });
+
+    document
+      .querySelectorAll('#cuerpoVistaDiariaDashboard tr')
+      .forEach(fila => {
+        const celdas = fila.querySelectorAll('td');
+        if (!celdas.length) return;
+
+        const fecha = String(celdas[0].textContent || '').trim();
+
+        let celdaDynamic = fila.querySelector('td[data-v12-dynamic="SI"]');
+
+        if (!celdaDynamic && celdas.length >= 2) {
+          celdaDynamic = document.createElement('td');
+          celdaDynamic.dataset.v12Dynamic = 'SI';
+          fila.insertBefore(celdaDynamic, fila.lastElementChild);
+        }
+
+        if (celdaDynamic) {
+          celdaDynamic.textContent = String(mapa[fecha] || 0);
+        }
+      });
+  }
+
+  function pintarOperativoV12(resultado) {
+    if (!resultado?.ok) return;
+
+    ultimaRespuesta = resultado;
+    asegurarDynamicV12();
+    asegurarAutomaticoV12();
+
+    if (typeof setText === 'function') {
+      setText('dashAtendidosDynamic', Number(resultado.atendidosDynamic || 0));
+      setText('dashAsesorDynamic', Number(resultado.plataformaAsesor?.dynamic || 0));
+
+      const disponibles = Number(resultado.disponibles || 0);
+      setText(
+        'dashCantidadDisponibles',
+        `${disponibles} disponible${disponibles === 1 ? '' : 's'}`
+      );
+    }
+
+    const plataforma = resultado.plataformaAsesor || {};
+    const maximo = Math.max(
+      Number(plataforma.zendesk || 0),
+      Number(plataforma.portal || 0),
+      Number(plataforma.dynamic || 0),
+      1
+    );
+
+    const barraDynamic = v12('barraAsesorDynamic');
+    if (barraDynamic) {
+      barraDynamic.style.width = `${Number(plataforma.dynamic || 0) / maximo * 100}%`;
+    }
+
+    if (typeof pintarDisponibilidadAsesores === 'function') {
+      pintarDisponibilidadAsesores(resultado.disponibilidad || []);
+    }
+
+    if (typeof pintarSiguienteAsesor === 'function') {
+      pintarSiguienteAsesor(
+        resultado.siguienteAsesor || null,
+        resultado.pendientes || [],
+        resultado.disponibilidad || []
+      );
+    }
+
+    estado.pendientesAsignacionZendesk = resultado.pendientes || [];
+
+    const resumen = resultado.pendientesResumen || {};
+    const chip = v12('pendientesV12');
+    if (chip) {
+      chip.textContent = `Z ${Number(resumen.zendesk || 0)} · D ${Number(resumen.dynamic || 0)}`;
+    }
+
+    const selectorPendientes = v12('ticketPendienteAsignacion');
+    if (selectorPendientes && !(resultado.pendientes || []).length) {
+      selectorPendientes.innerHTML = '<option value="">Sin tickets Zendesk/Dynamic pendientes</option>';
+    }
+
+    pintarDiarioDynamicV12(resultado);
+  }
+
+  function refrescarOperativoV12() {
+    if (!estado?.token || !esAdminV12()) return;
+
+    google.script.run
+      .withSuccessHandler(resultado => {
+        if (!resultado?.ok) return;
+        pintarOperativoV12(resultado);
+      })
+      .withFailureHandler(() => {})
+      .obtenerDashboardOperativoV12(
+        estado.token,
+        filtrosV12()
+      );
+  }
+
+  function procesarPendientesV12UI(manual) {
+    if (procesando || !estado?.token || !esAdminV12()) return;
+
+    procesando = true;
+    const boton = v12('botonProcesarAutomaticos');
+    const control = v12('controlAutomaticoV12');
+
+    control?.classList.add('v12-auto-procesando');
+
+    if (boton) {
+      boton.disabled = true;
+      boton.textContent = 'Asignando...';
+    }
+
+    actualizarContadorV12();
+
+    google.script.run
+      .withSuccessHandler(resultado => {
+        procesando = false;
+        proximaEjecucion = Date.now() + CICLO_MS;
+        control?.classList.remove('v12-auto-procesando');
+
+        if (boton) {
+          boton.disabled = false;
+          boton.textContent = 'Procesar pendientes';
+        }
+
+        actualizarContadorV12();
+        refrescarOperativoV12();
+
+        if (manual && typeof mostrarMensaje === 'function') {
+          mostrarMensaje(
+            'mensajeDashboard',
+            resultado?.message || 'Proceso finalizado',
+            resultado?.ok ? 'ok' : 'error'
+          );
+        }
+      })
+      .withFailureHandler(error => {
+        procesando = false;
+        proximaEjecucion = Date.now() + CICLO_MS;
+        control?.classList.remove('v12-auto-procesando');
+
+        if (boton) {
+          boton.disabled = false;
+          boton.textContent = 'Procesar pendientes';
+        }
+
+        actualizarContadorV12();
+
+        if (manual && typeof mostrarMensaje === 'function') {
+          mostrarMensaje(
+            'mensajeDashboard',
+            error?.message || 'Error al procesar pendientes'
+          );
+        }
+      })
+      .procesarPendientesV12(estado.token);
+  }
+
+  function vincularFiltrosV12() {
+    ['dashMes', 'dashAnio', 'dashPlataforma', 'dashAsesor']
+      .forEach(id => {
+        const elemento = v12(id);
+        if (!elemento || elemento.dataset.v12Filtro === 'SI') return;
+
+        elemento.dataset.v12Filtro = 'SI';
+        elemento.addEventListener('change', () => {
+          window.setTimeout(refrescarOperativoV12, 150);
+        });
+      });
+  }
+
+  function envolverPintadoV12() {
+    const anterior = window.pintarDashboard;
+
+    if (
+      typeof anterior !== 'function' ||
+      anterior.__v12Envuelto
+    ) {
+      return;
+    }
+
+    const nuevo = function () {
+      const resultado = anterior.apply(this, arguments);
+      window.setTimeout(refrescarOperativoV12, 100);
+      return resultado;
+    };
+
+    nuevo.__v12Envuelto = true;
+    window.pintarDashboard = nuevo;
+  }
+
+  function iniciarV12() {
+    asegurarDynamicV12();
+    asegurarAutomaticoV12();
+    vincularFiltrosV12();
+    envolverPintadoV12();
+
+    const esperarSesion = window.setInterval(() => {
+      if (!estado?.sesion) return;
+
+      asegurarDynamicV12();
+      asegurarAutomaticoV12();
+      vincularFiltrosV12();
+
+      if (esAdminV12()) {
+        refrescarOperativoV12();
+        configurarAutomaticoV12();
+      }
+
+      window.clearInterval(esperarSesion);
+    }, 500);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciarV12);
+  } else {
+    iniciarV12();
+  }
+})();
+</script>
