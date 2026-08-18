@@ -1,0 +1,1713 @@
+<style>
+/* =========================================================
+   OCULTAR VISTA DIARIA
+========================================================= */
+
+.selector-vista-dashboard,
+#vistaDiariaDashboard {
+  display: none !important;
+}
+
+
+/* =========================================================
+   BANDEJA RÁPIDA
+========================================================= */
+
+#vistaBandeja {
+  transition: opacity 0.12s ease;
+}
+
+.bandeja-actualizando-ui {
+  position: relative;
+}
+
+.bandeja-actualizando-ui::after {
+  content: 'Actualizando...';
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 9000;
+  padding: 10px 15px;
+  border-radius: 9px;
+  background: #111111;
+  color: #ffffff;
+  box-shadow:
+    0 12px 28px
+    rgba(15, 23, 42, 0.24);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+
+/* =========================================================
+   ALERTA DE DATOS INCOMPLETOS
+========================================================= */
+
+.alerta-completar-datos-ui {
+  margin-bottom: 14px;
+  padding: 13px 15px;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  border: 2px solid #f04438;
+  border-radius: 11px;
+  background: #fff1f0;
+  color: #b42318;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.alerta-completar-datos-ui.oculto {
+  display: none !important;
+}
+
+.alerta-completar-datos-icono {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #d92d20;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.alerta-completar-datos-contenido strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 16px;
+}
+
+.alerta-completar-datos-contenido span {
+  display: block;
+}
+
+.campo-incompleto-ui {
+  border: 2px solid #f04438 !important;
+  background: #fff8f7 !important;
+  box-shadow:
+    0 0 0 3px
+    rgba(240, 68, 56, 0.12) !important;
+}
+
+
+/* =========================================================
+   MENSAJES
+========================================================= */
+
+.mensaje {
+  min-height: 24px !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  line-height: 1.4 !important;
+}
+
+
+/* =========================================================
+   MODAL COMPACTO
+========================================================= */
+
+#modalTicket .modal {
+  width: min(880px, 100%);
+  max-height: 96vh;
+}
+
+#modalTicket .modal-header {
+  padding: 13px 18px;
+}
+
+#modalTicket .modal-body {
+  padding: 13px 18px;
+}
+
+#modalTicket .modal-footer {
+  padding: 11px 18px;
+}
+
+#modalTicket .grid-datos {
+  gap: 9px 12px;
+}
+
+#modalTicket .grupo {
+  margin-bottom: 8px;
+}
+
+#modalTicket textarea.campo {
+  min-height: 66px;
+  max-height: 85px;
+}
+
+#modalTicket .separador {
+  margin: 10px 0;
+}
+
+#modalTicket .resumen-ticket {
+  margin-top: 7px;
+  gap: 7px;
+}
+
+
+/* =========================================================
+   RESPONSABLE ANTERIOR PORTAL
+========================================================= */
+
+.opcion-responsable-anterior-ui {
+  font-weight: 800;
+}
+
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+.panel-campus-dashboard {
+  width: 100%;
+  margin-top: 0;
+}
+</style>
+
+
+<script>
+(function () {
+  'use strict';
+
+  if (
+    window.__AJUSTES_VISTA_UI_V2__
+  ) {
+    return;
+  }
+
+  window.__AJUSTES_VISTA_UI_V2__ =
+    true;
+
+  let numeroSolicitudTicketsUI = 0;
+
+  let cacheGeneralTicketsUI =
+    null;
+
+  let resumenGeneralTicketsUI =
+    null;
+
+
+  /* =======================================================
+     UTILIDADES
+  ======================================================= */
+
+  function elementoUI(id) {
+    return document.getElementById(id);
+  }
+
+
+  function normalizarUI(valor) {
+    if (
+      typeof normalizarCliente ===
+      'function'
+    ) {
+      return normalizarCliente(valor);
+    }
+
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(
+        /[\u0300-\u036f]/g,
+        ''
+      )
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+
+  function esAdministradorUI() {
+    return normalizarUI(
+      estado?.sesion?.rol
+    ) === 'ADMIN';
+  }
+
+
+  function valorVacioUI(valor) {
+    const texto =
+      normalizarUI(valor);
+
+    return (
+      !texto ||
+      texto === 'SELECCIONAR' ||
+      texto === '#N/D' ||
+      texto === 'N/D' ||
+      texto === '-'
+    );
+  }
+
+
+  function limpiarFiltrosUI() {
+    const valores = {
+      filtroBuscar: '',
+      filtroResponsable: '',
+      filtroOrigen: '',
+      filtroDetalle: '',
+      ordenTickets:
+        'numero_desc'
+    };
+
+    Object.entries(valores)
+      .forEach(
+        ([id, valor]) => {
+          const campo =
+            elementoUI(id);
+
+          if (campo) {
+            campo.value = valor;
+          }
+        }
+      );
+  }
+
+
+  function obtenerFiltrosUI() {
+    return {
+      buscar:
+        elementoUI(
+          'filtroBuscar'
+        )?.value || '',
+
+      responsable:
+        elementoUI(
+          'filtroResponsable'
+        )?.value || '',
+
+      origen:
+        elementoUI(
+          'filtroOrigen'
+        )?.value || '',
+
+      detalle:
+        elementoUI(
+          'filtroDetalle'
+        )?.value || ''
+    };
+  }
+
+
+  function filtrosVaciosUI(
+    filtros
+  ) {
+    return (
+      !String(
+        filtros.buscar || ''
+      ).trim() &&
+      !String(
+        filtros.responsable || ''
+      ).trim() &&
+      !String(
+        filtros.origen || ''
+      ).trim() &&
+      !String(
+        filtros.detalle || ''
+      ).trim()
+    );
+  }
+
+
+  /* =======================================================
+     RESUMEN
+  ======================================================= */
+
+  function crearResumenUI(tickets) {
+    const resumen = {
+      total:
+        (tickets || []).length,
+      enRevision: 0,
+      pendiente: 0,
+      enEspera: 0,
+      seguimiento: 0,
+      atendido: 0
+    };
+
+    (tickets || []).forEach(
+      ticket => {
+        const detalle =
+          normalizarUI(
+            ticket.detalle
+          );
+
+        const estadoTicket =
+          normalizarUI(
+            ticket.estado
+          );
+
+        if (
+          detalle ===
+          'EN REVISION'
+        ) {
+          resumen.enRevision++;
+
+        } else if (
+          detalle ===
+          'PENDIENTE'
+        ) {
+          resumen.pendiente++;
+
+        } else if (
+          detalle ===
+          'EN ESPERA'
+        ) {
+          resumen.enEspera++;
+
+        } else if (
+          detalle ===
+          'SEGUIMIENTO'
+        ) {
+          resumen.seguimiento++;
+
+        } else if (
+          [
+            'ATENDIDO',
+            'DERIVADO',
+            'CERRADO'
+          ].includes(detalle) ||
+          estadoTicket ===
+            'CERRADO'
+        ) {
+          resumen.atendido++;
+        }
+      }
+    );
+
+    return resumen;
+  }
+
+
+  function pintarTicketsUI(
+    tickets,
+    resumen
+  ) {
+    estado.tickets =
+      tickets || [];
+
+    if (
+      typeof pintarResumen ===
+      'function'
+    ) {
+      pintarResumen(
+        resumen ||
+        crearResumenUI(tickets)
+      );
+    }
+
+    if (
+      typeof pintarPanelesTickets ===
+      'function'
+    ) {
+      pintarPanelesTickets(
+        tickets || []
+      );
+    }
+  }
+
+
+  /* =======================================================
+     BANDEJA RÁPIDA
+  ======================================================= */
+
+  window.cargarTickets =
+    function () {
+      const solicitud =
+        ++numeroSolicitudTicketsUI;
+
+      const contenedor =
+        elementoUI(
+          'panelesTickets'
+        );
+
+      const filtros =
+        obtenerFiltrosUI();
+
+      const sinFiltros =
+        filtrosVaciosUI(
+          filtros
+        );
+
+      const existeCache =
+        sinFiltros &&
+        Array.isArray(
+          cacheGeneralTicketsUI
+        );
+
+      if (existeCache) {
+        pintarTicketsUI(
+          cacheGeneralTicketsUI,
+          resumenGeneralTicketsUI
+        );
+
+        elementoUI(
+          'vistaBandeja'
+        )?.classList.add(
+          'bandeja-actualizando-ui'
+        );
+
+      } else if (contenedor) {
+        contenedor.innerHTML = `
+          <div class="cargando-tabla">
+            Cargando tickets...
+          </div>
+        `;
+      }
+
+      google.script.run
+        .withSuccessHandler(
+          resultado => {
+            if (
+              solicitud !==
+              numeroSolicitudTicketsUI
+            ) {
+              return;
+            }
+
+            elementoUI(
+              'vistaBandeja'
+            )?.classList.remove(
+              'bandeja-actualizando-ui'
+            );
+
+            if (
+              !resultado ||
+              !resultado.ok
+            ) {
+              if (
+                !existeCache &&
+                contenedor
+              ) {
+                contenedor.innerHTML = `
+                  <div class="vacio">
+                    ${
+                      escapeHtml(
+                        resultado?.message ||
+                        'No se pudieron cargar los tickets'
+                      )
+                    }
+                  </div>
+                `;
+              }
+
+              return;
+            }
+
+            const tickets =
+              Array.isArray(
+                resultado.tickets
+              )
+                ? resultado.tickets
+                : [];
+
+            const resumen =
+              resultado.resumen ||
+              crearResumenUI(tickets);
+
+            if (sinFiltros) {
+              cacheGeneralTicketsUI =
+                tickets.slice();
+
+              resumenGeneralTicketsUI =
+                Object.assign(
+                  {},
+                  resumen
+                );
+            }
+
+            pintarTicketsUI(
+              tickets,
+              resumen
+            );
+
+            window.setTimeout(
+              () => {
+                if (
+                  typeof cargarAlertasDatosUsuario ===
+                  'function'
+                ) {
+                  cargarAlertasDatosUsuario();
+                }
+              },
+              50
+            );
+          }
+        )
+        .withFailureHandler(
+          error => {
+            elementoUI(
+              'vistaBandeja'
+            )?.classList.remove(
+              'bandeja-actualizando-ui'
+            );
+
+            if (
+              !existeCache &&
+              contenedor
+            ) {
+              contenedor.innerHTML = `
+                <div class="vacio">
+                  ${
+                    escapeHtml(
+                      error?.message ||
+                      'Error de conexión'
+                    )
+                  }
+                </div>
+              `;
+            }
+          }
+        )
+        .obtenerTickets(
+          estado.token,
+          filtros
+        );
+    };
+
+
+  /* =======================================================
+     FILTROS VACÍOS
+  ======================================================= */
+
+  const llenarFiltrosAnteriorUI =
+    window.llenarFiltros;
+
+  if (
+    typeof llenarFiltrosAnteriorUI ===
+    'function'
+  ) {
+    window.llenarFiltros =
+      function () {
+        const resultado =
+          llenarFiltrosAnteriorUI
+            .apply(
+              this,
+              arguments
+            );
+
+        limpiarFiltrosUI();
+
+        return resultado;
+      };
+  }
+
+
+  const cambiarVistaAnteriorUI =
+    window.cambiarVista;
+
+  if (
+    typeof cambiarVistaAnteriorUI ===
+    'function'
+  ) {
+    window.cambiarVista =
+      function (vista) {
+        if (
+          vista === 'bandeja'
+        ) {
+          limpiarFiltrosUI();
+
+          if (
+            Array.isArray(
+              cacheGeneralTicketsUI
+            )
+          ) {
+            pintarTicketsUI(
+              cacheGeneralTicketsUI,
+              resumenGeneralTicketsUI
+            );
+          }
+        }
+
+        const resultado =
+          cambiarVistaAnteriorUI
+            .apply(
+              this,
+              arguments
+            );
+
+        if (
+          vista === 'dashboard'
+        ) {
+          window.setTimeout(
+            ordenarDashboardUI,
+            0
+          );
+        }
+
+        return resultado;
+      };
+  }
+
+
+  /* =======================================================
+     ALERTA DE DATOS
+  ======================================================= */
+
+  function asegurarAlertaDatosUI() {
+    const cuerpo =
+      document.querySelector(
+        '#modalTicket .modal-body'
+      );
+
+    if (!cuerpo) {
+      return null;
+    }
+
+    let alerta =
+      elementoUI(
+        'alertaCompletarDatosUI'
+      );
+
+    if (!alerta) {
+      alerta =
+        document.createElement(
+          'div'
+        );
+
+      alerta.id =
+        'alertaCompletarDatosUI';
+
+      alerta.className =
+        'alerta-completar-datos-ui oculto';
+
+      alerta.innerHTML = `
+        <div class="alerta-completar-datos-icono">
+          !
+        </div>
+
+        <div class="alerta-completar-datos-contenido">
+          <strong>
+            Completa los datos obligatorios
+          </strong>
+
+          <span id="textoAlertaCompletarDatosUI"></span>
+        </div>
+      `;
+
+      const grid =
+        cuerpo.querySelector(
+          '.grid-datos'
+        );
+
+      if (grid) {
+        cuerpo.insertBefore(
+          alerta,
+          grid
+        );
+
+      } else {
+        cuerpo.prepend(
+          alerta
+        );
+      }
+    }
+
+    return alerta;
+  }
+
+
+  function camposFaltantesUI() {
+    const faltantes = [];
+
+    if (
+      valorVacioUI(
+        elementoUI(
+          'editCampus'
+        )?.value
+      )
+    ) {
+      faltantes.push({
+        nombre: 'Campus',
+        id: 'editCampus'
+      });
+    }
+
+    if (
+      valorVacioUI(
+        elementoUI(
+          'editTipoIngreso'
+        )?.value
+      )
+    ) {
+      faltantes.push({
+        nombre:
+          'Tipo de ingreso',
+        id:
+          'editTipoIngreso'
+      });
+    }
+
+    if (
+      valorVacioUI(
+        elementoUI(
+          'editTipoConvalidacion'
+        )?.value
+      )
+    ) {
+      faltantes.push({
+        nombre:
+          'Tipo de convalidación',
+        id:
+          'editTipoConvalidacion'
+      });
+    }
+
+    if (
+      normalizarUI(
+        estado.ticketActual
+          ?.tipoTicket
+      ) === 'REEVALUADO' &&
+      valorVacioUI(
+        elementoUI(
+          'editTipoReevaluacion'
+        )?.value
+      )
+    ) {
+      faltantes.push({
+        nombre:
+          'Tipo de reevaluación',
+        id:
+          'editTipoReevaluacion'
+      });
+    }
+
+    return faltantes;
+  }
+
+
+  function limpiarCamposMarcadosUI() {
+    [
+      'editCampus',
+      'editTipoIngreso',
+      'editTipoConvalidacion',
+      'editTipoReevaluacion'
+    ].forEach(
+      id => {
+        elementoUI(id)
+          ?.classList
+          .remove(
+            'campo-incompleto-ui'
+          );
+      }
+    );
+  }
+
+
+  function actualizarAlertaUI() {
+    const alerta =
+      asegurarAlertaDatosUI();
+
+    limpiarCamposMarcadosUI();
+
+    const botonGuardar =
+      elementoUI(
+        'botonGuardarTicket'
+      );
+
+    /*
+     * El administrador no tiene
+     * validación obligatoria.
+     */
+    if (esAdministradorUI()) {
+      alerta?.classList.add(
+        'oculto'
+      );
+
+      if (botonGuardar) {
+        botonGuardar.disabled =
+          Boolean(
+            estado.permisosTicket
+              ?.soloLectura
+          );
+      }
+
+      return true;
+    }
+
+    const faltantes =
+      camposFaltantesUI();
+
+    faltantes.forEach(
+      campo => {
+        elementoUI(
+          campo.id
+        )?.classList.add(
+          'campo-incompleto-ui'
+        );
+      }
+    );
+
+    if (botonGuardar) {
+      botonGuardar.disabled =
+        Boolean(
+          estado.permisosTicket
+            ?.soloLectura
+        ) ||
+        faltantes.length > 0;
+    }
+
+    if (!faltantes.length) {
+      alerta?.classList.add(
+        'oculto'
+      );
+
+      return true;
+    }
+
+    const nombres =
+      faltantes.map(
+        campo =>
+          campo.nombre
+      );
+
+    const texto =
+      nombres.length === 1
+        ? `Falta completar: ${nombres[0]}.`
+        : `Falta completar: ${nombres.join(', ')}.`;
+
+    const textoAlerta =
+      elementoUI(
+        'textoAlertaCompletarDatosUI'
+      );
+
+    if (textoAlerta) {
+      textoAlerta.textContent =
+        texto;
+    }
+
+    alerta?.classList.remove(
+      'oculto'
+    );
+
+    return false;
+  }
+
+
+  function vincularCamposUI() {
+    [
+      'editCampus',
+      'editTipoIngreso',
+      'editTipoConvalidacion',
+      'editTipoReevaluacion'
+    ].forEach(
+      id => {
+        const campo =
+          elementoUI(id);
+
+        if (
+          !campo ||
+          campo.dataset
+            .validacionUi === 'SI'
+        ) {
+          return;
+        }
+
+        campo.dataset
+          .validacionUi = 'SI';
+
+        campo.addEventListener(
+          'change',
+          actualizarAlertaUI
+        );
+
+        campo.addEventListener(
+          'input',
+          actualizarAlertaUI
+        );
+      }
+    );
+  }
+
+
+  function ocultarNumeroTicketUI() {
+    [
+      'editNumero',
+      'editTicket'
+    ].forEach(
+      id => {
+        const grupo =
+          elementoUI(id)
+            ?.closest('.grupo');
+
+        if (grupo) {
+          grupo.style.display =
+            'none';
+        }
+      }
+    );
+  }
+
+
+  const pintarModalAnteriorUI =
+    window.pintarModalTicket;
+
+  if (
+    typeof pintarModalAnteriorUI ===
+    'function'
+  ) {
+    window.pintarModalTicket =
+      function () {
+        const resultado =
+          pintarModalAnteriorUI
+            .apply(
+              this,
+              arguments
+            );
+
+        ocultarNumeroTicketUI();
+
+        vincularCamposUI();
+
+        window.setTimeout(
+          actualizarAlertaUI,
+          0
+        );
+
+        return resultado;
+      };
+  }
+
+
+  /* =======================================================
+     GUARDAR TICKET
+  ======================================================= */
+
+  window.guardarTicketActual =
+    function () {
+      if (
+        !estado.ticketActual
+      ) {
+        return;
+      }
+
+      const datos =
+        recopilarEdicionTicket();
+
+      if (
+        !esAdministradorUI() &&
+        !actualizarAlertaUI()
+      ) {
+        const primerCampo =
+          camposFaltantesUI()[0];
+
+        elementoUI(
+          primerCampo?.id
+        )?.focus();
+
+        mostrarMensaje(
+          'mensajeTicket',
+          'Completa los datos obligatorios antes de guardar.'
+        );
+
+        return;
+      }
+
+      const boton =
+        elementoUI(
+          'botonGuardarTicket'
+        );
+
+      if (boton) {
+        boton.disabled = true;
+        boton.textContent =
+          'Guardando...';
+      }
+
+      mostrarMensaje(
+        'mensajeTicket',
+        'Guardando cambios...',
+        'ok'
+      );
+
+      google.script.run
+        .withSuccessHandler(
+          resultado => {
+            if (boton) {
+              boton.disabled = false;
+              boton.textContent =
+                'Guardar cambios';
+            }
+
+            if (
+              !resultado ||
+              !resultado.ok
+            ) {
+              mostrarMensaje(
+                'mensajeTicket',
+                resultado?.message ||
+                'No se pudo guardar el ticket'
+              );
+
+              return;
+            }
+
+            if (resultado.ticket) {
+              estado.ticketActual =
+                resultado.ticket;
+            }
+
+            cacheGeneralTicketsUI =
+              null;
+
+            resumenGeneralTicketsUI =
+              null;
+
+            mostrarMensaje(
+              'mensajeTicket',
+              resultado.message ||
+              'Ticket actualizado correctamente',
+              'ok'
+            );
+
+            cargarTickets();
+
+            if (
+              esAdministradorUI() &&
+              estado.vistaActual ===
+                'dashboard'
+            ) {
+              cargarDashboardAdmin();
+            }
+
+            window.setTimeout(
+              cerrarModalTicket,
+              700
+            );
+          }
+        )
+        .withFailureHandler(
+          error => {
+            if (boton) {
+              boton.disabled = false;
+              boton.textContent =
+                'Guardar cambios';
+            }
+
+            mostrarMensaje(
+              'mensajeTicket',
+              error?.message ||
+              'Error al guardar el ticket'
+            );
+          }
+        )
+        .guardarTicketFinal(
+          estado.token,
+          datos
+        );
+    };
+
+
+  /* =======================================================
+     REASIGNACIÓN PORTAL
+  ======================================================= */
+
+  function agregarResponsableAnteriorUI() {
+    const alertas =
+      Array.isArray(
+        estado.alertasPortal
+      )
+        ? estado.alertasPortal
+        : [];
+
+    alertas.forEach(
+      (
+        alerta,
+        indice
+      ) => {
+        const selector =
+          elementoUI(
+            `asesorPortal_${indice}`
+          );
+
+        const anterior =
+          alerta.responsableAnterior ||
+          alerta.responsable_anterior ||
+          alerta.anterior ||
+          '';
+
+        if (
+          !selector ||
+          !anterior
+        ) {
+          return;
+        }
+
+        const yaExiste =
+          Array
+            .from(
+              selector.options
+            )
+            .some(
+              opcion =>
+                normalizarUI(
+                  opcion.value
+                ) ===
+                normalizarUI(
+                  anterior
+                )
+            );
+
+        if (yaExiste) {
+          return;
+        }
+
+        const opcion =
+          document.createElement(
+            'option'
+          );
+
+        opcion.value =
+          anterior;
+
+        opcion.textContent =
+          `${anterior} · responsable anterior`;
+
+        opcion.className =
+          'opcion-responsable-anterior-ui';
+
+        selector.insertBefore(
+          opcion,
+          selector.options[1] ||
+          null
+        );
+      }
+    );
+  }
+
+
+  const pintarAlertasAnteriorUI =
+    window.pintarAlertasPortalDashboard;
+
+  if (
+    typeof pintarAlertasAnteriorUI ===
+    'function'
+  ) {
+    window.pintarAlertasPortalDashboard =
+      function () {
+        const resultado =
+          pintarAlertasAnteriorUI
+            .apply(
+              this,
+              arguments
+            );
+
+        window.setTimeout(
+          agregarResponsableAnteriorUI,
+          0
+        );
+
+        return resultado;
+      };
+  }
+
+
+  window.reasignarTicketPortalAdmin =
+    function (
+      idAlerta,
+      asesorManual
+    ) {
+      if (
+        idAlerta === undefined ||
+        idAlerta === null ||
+        idAlerta === ''
+      ) {
+        mostrarMensaje(
+          'mensajeAlertasPortal',
+          'No se identificó la alerta seleccionada'
+        );
+
+        return;
+      }
+
+      const pregunta =
+        asesorManual
+          ? `¿Confirmas la reasignación a ${asesorManual}?`
+          : '¿Confirmas la reasignación automática?';
+
+      if (
+        !window.confirm(
+          pregunta
+        )
+      ) {
+        return;
+      }
+
+      mostrarMensaje(
+        'mensajeAlertasPortal',
+        'Procesando reasignación...',
+        'ok'
+      );
+
+      google.script.run
+        .withSuccessHandler(
+          resultado => {
+            if (
+              !resultado ||
+              !resultado.ok
+            ) {
+              mostrarMensaje(
+                'mensajeAlertasPortal',
+                resultado?.message ||
+                'No se pudo reasignar el ticket'
+              );
+
+              return;
+            }
+
+            mostrarMensaje(
+              'mensajeAlertasPortal',
+              resultado.message ||
+              'Ticket reasignado',
+              'ok'
+            );
+
+            cacheGeneralTicketsUI =
+              null;
+
+            cargarDashboardAdmin();
+
+            cargarTickets();
+          }
+        )
+        .withFailureHandler(
+          error => {
+            mostrarMensaje(
+              'mensajeAlertasPortal',
+              error?.message ||
+              'Error al reasignar el ticket'
+            );
+          }
+        )
+        .reasignarAlertaPortalFinal(
+          estado.token,
+          idAlerta,
+          asesorManual || ''
+        );
+    };
+
+
+  window.procesarTodasAlertasPortal =
+    function () {
+      if (
+        !Array.isArray(
+          estado.alertasPortal
+        ) ||
+        !estado.alertasPortal.length
+      ) {
+        mostrarMensaje(
+          'mensajeAlertasPortal',
+          'No existen alertas Portal pendientes'
+        );
+
+        return;
+      }
+
+      if (
+        !window.confirm(
+          '¿Confirmas que deseas procesar automáticamente los tickets Portal reportados?'
+        )
+      ) {
+        return;
+      }
+
+      const boton =
+        elementoUI(
+          'botonProcesarAlertasPortal'
+        );
+
+      if (boton) {
+        boton.disabled = true;
+      }
+
+      mostrarMensaje(
+        'mensajeAlertasPortal',
+        'Procesando tickets Portal...',
+        'ok'
+      );
+
+      google.script.run
+        .withSuccessHandler(
+          resultado => {
+            if (boton) {
+              boton.disabled = false;
+            }
+
+            if (
+              !resultado ||
+              !resultado.ok
+            ) {
+              mostrarMensaje(
+                'mensajeAlertasPortal',
+                resultado?.message ||
+                'No se procesaron los tickets'
+              );
+
+              return;
+            }
+
+            mostrarMensaje(
+              'mensajeAlertasPortal',
+              resultado.message ||
+              'Tickets procesados',
+              'ok'
+            );
+
+            cacheGeneralTicketsUI =
+              null;
+
+            cargarDashboardAdmin();
+
+            cargarTickets();
+          }
+        )
+        .withFailureHandler(
+          error => {
+            if (boton) {
+              boton.disabled = false;
+            }
+
+            mostrarMensaje(
+              'mensajeAlertasPortal',
+              error?.message ||
+              'Error al procesar los tickets'
+            );
+          }
+        )
+        .procesarAlertasPortalAutomaticasFinal(
+          estado.token
+        );
+    };
+
+
+  /* =======================================================
+     DASHBOARD
+  ======================================================= */
+
+  function ordenarDashboardUI() {
+    const selectorVista =
+      document.querySelector(
+        '.selector-vista-dashboard'
+      );
+
+    const vistaDiaria =
+      elementoUI(
+        'vistaDiariaDashboard'
+      );
+
+    const vistaGlobal =
+      elementoUI(
+        'vistaGlobalDashboard'
+      );
+
+    const atencionGlobal =
+      document.querySelector(
+        '.panel-diario-global'
+      );
+
+    const campus =
+      document.querySelector(
+        '.panel-campus-dashboard'
+      );
+
+    if (selectorVista) {
+      selectorVista.style.display =
+        'none';
+    }
+
+    if (vistaDiaria) {
+      vistaDiaria.classList.add(
+        'oculto'
+      );
+    }
+
+    if (vistaGlobal) {
+      vistaGlobal.classList.remove(
+        'oculto'
+      );
+    }
+
+    if (
+      atencionGlobal &&
+      campus &&
+      atencionGlobal
+        .nextElementSibling !==
+        campus
+    ) {
+      atencionGlobal
+        .insertAdjacentElement(
+          'afterend',
+          campus
+        );
+    }
+
+    estado.vistaDashboardActual =
+      'global';
+  }
+
+
+  const cambiarDashboardAnteriorUI =
+    window.cambiarVistaDashboard;
+
+  if (
+    typeof cambiarDashboardAnteriorUI ===
+    'function'
+  ) {
+    window.cambiarVistaDashboard =
+      function () {
+        const resultado =
+          cambiarDashboardAnteriorUI(
+            'global'
+          );
+
+        window.setTimeout(
+          ordenarDashboardUI,
+          0
+        );
+
+        return resultado;
+      };
+  }
+
+
+  const pintarDashboardAnteriorUI =
+    window.pintarDashboard;
+
+  if (
+    typeof pintarDashboardAnteriorUI ===
+    'function'
+  ) {
+    window.pintarDashboard =
+      function () {
+        const resultado =
+          pintarDashboardAnteriorUI
+            .apply(
+              this,
+              arguments
+            );
+
+        window.setTimeout(
+          ordenarDashboardUI,
+          0
+        );
+
+        return resultado;
+      };
+  }
+
+
+  /* =======================================================
+     INICIO
+  ======================================================= */
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    () => {
+      limpiarFiltrosUI();
+
+      ocultarNumeroTicketUI();
+
+      ordenarDashboardUI();
+
+      vincularCamposUI();
+    }
+  );
+}
+</script>
+
+<style>
+  #botonToggleAlertasAsignacion {
+    width: auto;
+    flex: 1;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  #iconoToggleAlertasAsignacion {
+    display: inline-flex;
+    width: 18px;
+    flex: 0 0 18px;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 900;
+    color: #b91c1c;
+  }
+
+  #botonToggleAlertasAsignacion strong {
+    display: block;
+    color: #111827;
+  }
+
+  #botonToggleAlertasAsignacion small {
+    display: block;
+    margin-top: 3px;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 500;
+  }
+</style>
+
+<script>
+(function configurarDesplegableAlertasAsignacion() {
+  if (window.__ALERTAS_ASIGNACION_DESPLEGABLE__) {
+    return;
+  }
+
+  window.__ALERTAS_ASIGNACION_DESPLEGABLE__ = true;
+
+  let alertasAsignacionAbiertas =
+    sessionStorage.getItem(
+      'alertasAsignacionAbiertas'
+    ) === 'true';
+
+  function aplicarEstadoAlertasAsignacion() {
+    const contenido =
+      document.getElementById(
+        'alertasAsignacionDashboard'
+      );
+
+    const boton =
+      document.getElementById(
+        'botonToggleAlertasAsignacion'
+      );
+
+    const icono =
+      document.getElementById(
+        'iconoToggleAlertasAsignacion'
+      );
+
+    if (!contenido || !boton || !icono) {
+      return;
+    }
+
+    contenido.classList.toggle(
+      'oculto',
+      !alertasAsignacionAbiertas
+    );
+
+    icono.textContent =
+      alertasAsignacionAbiertas
+        ? '▼'
+        : '▶';
+
+    boton.setAttribute(
+      'aria-expanded',
+      alertasAsignacionAbiertas
+        ? 'true'
+        : 'false'
+    );
+  }
+
+  function prepararAlertasAsignacion() {
+    const contenido =
+      document.getElementById(
+        'alertasAsignacionDashboard'
+      );
+
+    if (!contenido) {
+      return;
+    }
+
+    const seccion =
+      contenido.closest('section');
+
+    const cabecera =
+      seccion &&
+      seccion.querySelector(
+        '.titulo-panel-flex'
+      );
+
+    if (
+      !cabecera ||
+      document.getElementById(
+        'botonToggleAlertasAsignacion'
+      )
+    ) {
+      aplicarEstadoAlertasAsignacion();
+      return;
+    }
+
+    const bloqueTitulo =
+      cabecera.children[0];
+
+    if (!bloqueTitulo) {
+      return;
+    }
+
+    const boton =
+      document.createElement('button');
+
+    boton.id =
+      'botonToggleAlertasAsignacion';
+
+    boton.className =
+      'boton-toggle-alertas-datos';
+
+    boton.type = 'button';
+
+    boton.setAttribute(
+      'aria-expanded',
+      'false'
+    );
+
+    boton.innerHTML = `
+      <span id="iconoToggleAlertasAsignacion">
+        ▶
+      </span>
+
+      <span>
+        <strong>
+          Alertas de asignación
+        </strong>
+
+        <small>
+          Dos revisiones o combinación de revisión
+          con atendido o seguimiento.
+        </small>
+      </span>
+    `;
+
+    boton.addEventListener(
+      'click',
+      function () {
+        alertasAsignacionAbiertas =
+          !alertasAsignacionAbiertas;
+
+        sessionStorage.setItem(
+          'alertasAsignacionAbiertas',
+          String(
+            alertasAsignacionAbiertas
+          )
+        );
+
+        aplicarEstadoAlertasAsignacion();
+      }
+    );
+
+    cabecera.replaceChild(
+      boton,
+      bloqueTitulo
+    );
+
+    aplicarEstadoAlertasAsignacion();
+  }
+
+  if (
+    document.readyState === 'loading'
+  ) {
+    document.addEventListener(
+      'DOMContentLoaded',
+      prepararAlertasAsignacion
+    );
+  } else {
+    prepararAlertasAsignacion();
+  }
+
+  setTimeout(
+    prepararAlertasAsignacion,
+    800
+  );
+})();
+</script>
