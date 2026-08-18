@@ -1,0 +1,55 @@
+UTP TICKETS 12.0.2 ENTERPRISE FINAL
+
+BASE VISUAL Y FUNCIONAL
+- Conserva la estructura Enterprise de UTP Tickets 11.14.
+- Mantiene AUTOPROCESO Zendesk, Pausar, Cancelar proceso, Seleccionar listos, Importar, Seguimiento, Detalle actual, antecedentes, OBSERVADO / REEVALUADO, usuarios y roles.
+- Agrega selector ZENDESK / DYNAMIC.
+
+PLATAFORMAS
+- ZENDESK
+- DYNAMIC (Microsoft Dynamics 365)
+
+REGLAS DE ORIGEN
+1. DYNAMIC siempre se guarda como DYNAMIC.
+2. En Zendesk, si el DNI NO tiene antecedentes, el origen puede ser PORTAL o ZENDESK según la detección real del ticket.
+3. En Zendesk, si el DNI YA tiene antecedentes en BASE_TICKETS, el nuevo ticket se guarda como ZENDESK. PORTAL no se reutiliza para el reingreso.
+
+TIPO DE TICKET
+- NUEVO: DNI sin antecedentes.
+- REEVALUADO: mismo DNI con Ticket ID diferente o antecedente atendido/cerrado según historial.
+- REASIGNADO: reingresos habilitados por Seguimiento, Pendiente, Derivado, Cerrado u otro detalle compatible.
+- La plataforma NO define el tipo de ticket. El tipo se determina por DNI + historial de BASE_TICKETS.
+
+DYNAMIC
+- Lee la grilla Mis casos activos.
+- Extrae ID Ticket con formato CAS-... - U...
+- Extrae el nombre del alumno desde el título.
+- Consulta BASE_TICKETS antes de abrir el caso.
+- Cuando necesita DNI, abre el caso, lee Nro. documento y vuelve a la grilla.
+- ORIGEN siempre es DYNAMIC.
+
+AUTOPROCESO
+- Se mantiene para ZENDESK.
+- DYNAMIC se procesa manualmente desde su pestaña en esta primera versión final.
+
+INSTALACION CHROME
+1. Descarga el ZIP de la rama utp-tickets-v12-final y descomprímelo.
+2. Entra a la carpeta descargada.
+3. Selecciona exactamente la carpeta UTP_TICKETS_v12_0_ENTERPRISE.
+4. Abre chrome://extensions/.
+5. Activa Modo de desarrollador.
+6. Pulsa Cargar descomprimida y selecciona UTP_TICKETS_v12_0_ENTERPRISE.
+
+INSTALACION EDGE
+1. Abre edge://extensions/.
+2. Activa Modo de desarrollador.
+3. Pulsa Cargar descomprimido.
+4. Selecciona la misma carpeta UTP_TICKETS_v12_0_ENTERPRISE.
+
+PRIMERA PRUEBA RECOMENDADA
+1. Desactiva temporalmente la 11.14, pero NO la elimines.
+2. Instala la V12 FINAL.
+3. Prueba primero ZENDESK y confirma que la tabla, origen y tipo de ticket coincidan con 11.14.
+4. NO importes en la primera prueba.
+5. Luego instala la misma V12 en Edge, abre Mis casos activos y prueba DYNAMIC.
+6. Verifica ID Ticket, Alumno, DNI, Tipo de ticket y ORIGEN = DYNAMIC antes de importar.

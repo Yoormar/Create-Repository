@@ -1,0 +1,30 @@
+name: Validate and Package UTP Tickets V12 FINAL
+on:
+  push:
+    branches:
+      - utp-tickets-v12-final
+  workflow_dispatch:
+
+jobs:
+  validate-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate manifest
+        run: python -m json.tool UTP_TICKETS_v12_0_ENTERPRISE/manifest.json > /dev/null
+      - name: Validate JavaScript syntax
+        run: |
+          node --check UTP_TICKETS_v12_0_ENTERPRISE/background_v12.js
+          node --check UTP_TICKETS_v12_0_ENTERPRISE/ui_v12.js
+          node --check UTP_TICKETS_v12_0_ENTERPRISE/content.js
+          node --check UTP_TICKETS_v12_0_ENTERPRISE/content_dynamic.js
+      - name: Build ZIP
+        run: |
+          cd UTP_TICKETS_v12_0_ENTERPRISE
+          zip -r ../UTP_TICKETS_V12_FINAL.zip .
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: UTP_TICKETS_V12_FINAL
+          path: UTP_TICKETS_V12_FINAL.zip
+          if-no-files-found: error

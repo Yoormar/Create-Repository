@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "UTP Tickets 12.0 Enterprise FINAL",
+  "version": "12.0.5",
+  "description": "Zendesk Enterprise + DYNAMIC con la misma BASE_TICKETS y clasificación central por DNI.",
+  "permissions": ["activeTab", "tabs", "storage", "alarms", "scripting"],
+  "host_permissions": [
+    "https://admision.zendesk.com/*",
+    "https://*.crm2.dynamics.com/*",
+    "https://*.dynamics.com/*",
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*"
+  ],
+  "action": {
+    "default_title": "UTP - Gestión de tickets",
+    "default_popup": "popup.html"
+  },
+  "background": {"service_worker": "background_entry.js"},
+  "content_scripts": [
+    {
+      "matches": [
+        "https://admision.zendesk.com/agent/tickets/*",
+        "https://admision.zendesk.com/agent/filters/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.crm2.dynamics.com/*", "https://*.dynamics.com/*"],
+      "js": ["content_dynamic.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
