@@ -1,0 +1,1540 @@
+<script>
+(() => {
+  'use strict';
+
+  const estadoDG = {
+    datos: null,
+    cargando: false,
+    iniciado: false,
+    tendencia: 'diaria'
+  };
+
+  function dgElemento(id) {
+    return document.getElementById(id);
+  }
+
+  function dgEscape(valor) {
+    return String(
+      valor === null ||
+      valor === undefined
+        ? ''
+        : valor
+    )
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function dgNumero(valor) {
+    const numero = Number(valor || 0);
+
+    return new Intl.NumberFormat(
+      'es-PE'
+    ).format(
+      Number.isFinite(numero)
+        ? numero
+        : 0
+    );
+  }
+
+  function dgDecimal(valor) {
+    const numero = Number(valor || 0);
+
+    return new Intl.NumberFormat(
+      'es-PE',
+      {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      }
+    ).format(
+      Number.isFinite(numero)
+        ? numero
+        : 0
+    );
+  }
+
+  function dgObtenerToken() {
+    if (
+      window.estado &&
+      window.estado.token
+    ) {
+      return window.estado.token;
+    }
+
+    if (
+      typeof estado !== 'undefined' &&
+      estado &&
+      estado.token
+    ) {
+      return estado.token;
+    }
+
+    return '';
+  }
+
+  function dgPonerTexto(
+    id,
+    valor
+  ) {
+    const elemento =
+      dgElemento(id);
+
+    if (elemento) {
+      elemento.textContent =
+        valor === null ||
+        valor === undefined
+          ? ''
+          : String(valor);
+    }
+  }
+
+  function dgMostrarMensaje(
+    mensaje,
+    tipo = 'ok'
+  ) {
+    const contenedor =
+      dgElemento('dgMensaje');
+
+    if (!contenedor) {
+      return;
+    }
+
+    contenedor.className =
+      'dg-mensaje';
+
+    contenedor.textContent =
+      mensaje || '';
+
+    if (!mensaje) {
+      return;
+    }
+
+    contenedor.classList.add(
+      'activo'
+    );
+
+    contenedor.classList.add(
+      tipo === 'error'
+        ? 'error'
+        : 'ok'
+    );
+  }
+
+  function dgMostrarCarga(cargando) {
+    estadoDG.cargando =
+      Boolean(cargando);
+
+    const carga =
+      dgElemento('dgCarga');
+
+    if (carga) {
+      carga.classList.toggle(
+        'activo',
+        Boolean(cargando)
+      );
+    }
+
+    [
+      'dgBotonActualizar',
+      'dgBotonAplicarFiltros',
+      'dgBotonLimpiarFiltros'
+    ].forEach(id => {
+      const boton =
+        dgElemento(id);
+
+      if (boton) {
+        boton.disabled =
+          Boolean(cargando);
+      }
+    });
+
+    const botonActualizar =
+      dgElemento(
+        'dgBotonActualizar'
+      );
+
+    if (botonActualizar) {
+      botonActualizar.textContent =
+        cargando
+          ? 'Actualizando...'
+          : 'Actualizar información';
+    }
+  }
+
+  function dgFilaVacia(
+    columnas,
+    mensaje
+  ) {
+    return `
+      <tr>
+        <td colspan="${columnas}">
+          ${dgEscape(
+            mensaje ||
+            'No existen datos para mostrar.'
+          )}
+        </td>
+      </tr>
+    `;
+  }
+
+  function dgObtenerFiltros(forzar) {
+    return {
+      fechaDesde:
+        dgElemento(
+          'dgFechaDesde'
+        )?.value || '',
+
+      fechaHasta:
+        dgElemento(
+          'dgFechaHasta'
+        )?.value || '',
+
+      campus:
+        dgElemento(
+          'dgCampus'
+        )?.value || '',
+
+      asesor:
+        dgElemento(
+          'dgAsesor'
+        )?.value || '',
+
+      origen:
+        dgElemento(
+          'dgOrigen'
+        )?.value || '',
+
+      tipoTicket:
+        dgElemento(
+          'dgTipoTicket'
+        )?.value || '',
+
+      tipoReevaluacion:
+        dgElemento(
+          'dgTipoReevaluacion'
+        )?.value || '',
+
+      tipoConvalidacion:
+        dgElemento(
+          'dgTipoConvalidacion'
+        )?.value || '',
+
+      tipoIngreso:
+        dgElemento(
+          'dgTipoIngreso'
+        )?.value || '',
+
+      forzar:
+        Boolean(forzar)
+    };
+  }
+
+  function dgValidarFechas() {
+    const desde =
+      dgElemento(
+        'dgFechaDesde'
+      )?.value || '';
+
+    const hasta =
+      dgElemento(
+        'dgFechaHasta'
+      )?.value || '';
+
+    if (
+      desde &&
+      hasta &&
+      desde > hasta
+    ) {
+      dgMostrarMensaje(
+        'La fecha desde no puede ser mayor que la fecha hasta.',
+        'error'
+      );
+
+      return false;
+    }
+
+    return true;
+  }
+
+  function dgTextoSeleccionado(id) {
+    const selector =
+      dgElemento(id);
+
+    if (
+      !selector ||
+      !selector.value
+    ) {
+      return '';
+    }
+
+    return (
+      selector.options[
+        selector.selectedIndex
+      ]?.textContent?.trim() ||
+      ''
+    );
+  }
+
+  function dgActualizarResumenFiltros() {
+    const partes = [];
+
+    const desde =
+      dgElemento(
+        'dgFechaDesde'
+      )?.value || '';
+
+    const hasta =
+      dgElemento(
+        'dgFechaHasta'
+      )?.value || '';
+
+    if (desde) {
+      partes.push(
+        `Desde: ${desde}`
+      );
+    }
+
+    if (hasta) {
+      partes.push(
+        `Hasta: ${hasta}`
+      );
+    }
+
+    [
+      ['dgCampus', 'Campus'],
+      ['dgAsesor', 'Asesor'],
+      ['dgOrigen', 'Origen'],
+      [
+        'dgTipoTicket',
+        'Tipo de ticket'
+      ],
+      [
+        'dgTipoReevaluacion',
+        'Reevaluación'
+      ],
+      [
+        'dgTipoConvalidacion',
+        'Convalidación'
+      ],
+      [
+        'dgTipoIngreso',
+        'Tipo de ingreso'
+      ]
+    ].forEach(item => {
+      const texto =
+        dgTextoSeleccionado(
+          item[0]
+        );
+
+      if (texto) {
+        partes.push(
+          `${item[1]}: ${texto}`
+        );
+      }
+    });
+
+    dgPonerTexto(
+      'dgResumenFiltros',
+      partes.length
+        ? partes.join(' · ')
+        : 'Vista global · Todos los registros disponibles'
+    );
+  }
+
+  function dgLimpiarFiltros() {
+    [
+      'dgFechaDesde',
+      'dgFechaHasta',
+      'dgCampus',
+      'dgAsesor',
+      'dgOrigen',
+      'dgTipoTicket',
+      'dgTipoReevaluacion',
+      'dgTipoConvalidacion',
+      'dgTipoIngreso'
+    ].forEach(id => {
+      const elemento =
+        dgElemento(id);
+
+      if (elemento) {
+        elemento.value = '';
+      }
+    });
+
+    dgActualizarResumenFiltros();
+    dgCargarDashboard(false);
+  }
+
+  function dgLlenarSelector(
+    id,
+    lista,
+    textoInicial
+  ) {
+    const selector =
+      dgElemento(id);
+
+    if (!selector) {
+      return;
+    }
+
+    const valorActual =
+      selector.value;
+
+    const opciones = [
+      `
+        <option value="">
+          ${dgEscape(textoInicial)}
+        </option>
+      `
+    ];
+
+    (
+      Array.isArray(lista)
+        ? lista
+        : []
+    ).forEach(valor => {
+      opciones.push(`
+        <option value="${dgEscape(valor)}">
+          ${dgEscape(valor)}
+        </option>
+      `);
+    });
+
+    selector.innerHTML =
+      opciones.join('');
+
+    const existe =
+      Array
+        .from(selector.options)
+        .some(
+          opcion =>
+            opcion.value ===
+            valorActual
+        );
+
+    selector.value =
+      existe
+        ? valorActual
+        : '';
+  }
+
+  function dgPintarCatalogos(
+    catalogos
+  ) {
+    const datos =
+      catalogos || {};
+
+    dgLlenarSelector(
+      'dgCampus',
+      datos.campus,
+      'Todos los campus'
+    );
+
+    dgLlenarSelector(
+      'dgAsesor',
+      datos.asesores,
+      'Todos los asesores · Vista global'
+    );
+
+    dgLlenarSelector(
+      'dgOrigen',
+      datos.origenes,
+      'Todos los orígenes'
+    );
+
+    dgLlenarSelector(
+      'dgTipoTicket',
+      datos.tiposTicket,
+      'Todos los tipos de ticket'
+    );
+
+    dgLlenarSelector(
+      'dgTipoReevaluacion',
+      datos.tiposReevaluacion,
+      'Todas las reevaluaciones'
+    );
+
+    dgLlenarSelector(
+      'dgTipoConvalidacion',
+      datos.tiposConvalidacion,
+      'Todas las convalidaciones'
+    );
+
+    dgLlenarSelector(
+      'dgTipoIngreso',
+      datos.tiposIngreso,
+      'Todos los tipos de ingreso'
+    );
+  }
+
+  function dgPintarIndicadores(
+    resumen
+  ) {
+    const datos =
+      resumen || {};
+
+    dgPonerTexto(
+      'dgKpiTotal',
+      dgNumero(datos.total)
+    );
+
+    dgPonerTexto(
+      'dgKpiAtendidos',
+      dgNumero(datos.atendidos)
+    );
+
+    dgPonerTexto(
+      'dgKpiPorcentajeAtendidos',
+      `${dgDecimal(
+        datos.porcentajeAtendidos
+      )} % del total`
+    );
+
+    dgPonerTexto(
+      'dgKpiActivos',
+      dgNumero(datos.activos)
+    );
+
+    dgPonerTexto(
+      'dgKpiReevaluados',
+      dgNumero(datos.reevaluados)
+    );
+
+    dgPonerTexto(
+      'dgKpiTiempoPromedio',
+      datos.tiempoPromedioGlobal ||
+      '0 min'
+    );
+
+    dgPonerTexto(
+      'dgKpiCasosConTiempo',
+      `${dgNumero(
+        datos.casosConTiempo
+      )} casos con tiempo válido`
+    );
+
+    dgPonerTexto(
+      'dgKpiTotalCambios',
+      dgNumero(datos.totalCambios)
+    );
+
+    dgPonerTexto(
+      'dgKpiPromedioCambios',
+      dgDecimal(
+        datos.promedioCambios
+      )
+    );
+
+    dgPonerTexto(
+      'dgKpiUltimaActualizacion',
+      datos.ultimaActualizacion ||
+      'Sin información'
+    );
+  }
+
+  function dgPintarBarras(
+    id,
+    datos
+  ) {
+    const contenedor =
+      dgElemento(id);
+
+    if (!contenedor) {
+      return;
+    }
+
+    const lista =
+      (
+        Array.isArray(datos)
+          ? datos
+          : []
+      )
+        .filter(
+          item =>
+            Number(
+              item.tickets || 0
+            ) > 0
+        )
+        .slice(0, 15);
+
+    if (!lista.length) {
+      contenedor.innerHTML = `
+        <div class="dg-vacio">
+          No existen datos para mostrar.
+        </div>
+      `;
+
+      return;
+    }
+
+    const maximo =
+      Math.max(
+        ...lista.map(
+          item =>
+            Number(
+              item.tickets || 0
+            )
+        ),
+        1
+      );
+
+    contenedor.innerHTML = `
+      <div class="dg-barras">
+        ${lista.map(item => {
+          const valor =
+            Number(
+              item.tickets || 0
+            );
+
+          const porcentaje =
+            Math.max(
+              2,
+              Math.round(
+                valor /
+                maximo *
+                100
+              )
+            );
+
+          return `
+            <div class="dg-barra-item">
+
+              <span
+                class="dg-barra-nombre"
+                title="${dgEscape(
+                  item.nombre
+                )}"
+              >
+                ${dgEscape(
+                  item.nombre
+                )}
+              </span>
+
+              <div class="dg-barra-pista">
+                <div
+                  class="dg-barra-relleno"
+                  style="width:${porcentaje}%"
+                ></div>
+              </div>
+
+              <span class="dg-barra-valor">
+                ${dgNumero(valor)}
+              </span>
+
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  function dgPintarTablaCampus(
+    datos
+  ) {
+    const cuerpo =
+      dgElemento(
+        'dgTablaCampus'
+      );
+
+    if (!cuerpo) {
+      return;
+    }
+
+    const lista =
+      Array.isArray(datos)
+        ? datos
+        : [];
+
+    if (!lista.length) {
+      cuerpo.innerHTML =
+        dgFilaVacia(
+          7,
+          'No existen campus para los filtros seleccionados.'
+        );
+
+      return;
+    }
+
+    cuerpo.innerHTML =
+      lista.map(item => `
+        <tr>
+          <td>
+            <strong>
+              ${dgEscape(item.nombre)}
+            </strong>
+          </td>
+
+          <td class="dg-numero">
+            ${dgNumero(item.tickets)}
+          </td>
+
+          <td class="dg-atendido">
+            ${dgNumero(item.atendidos)}
+          </td>
+
+          <td class="dg-activo">
+            ${dgNumero(item.activos)}
+          </td>
+
+          <td>
+            ${dgNumero(item.reevaluados)}
+          </td>
+
+          <td>
+            ${dgDecimal(
+              item.porcentajeAtendidos
+            )} %
+          </td>
+
+          <td>
+            <span class="dg-tiempo">
+              ${dgEscape(
+                item.tiempoPromedio ||
+                '0 min'
+              )}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  function dgPintarTablaAsesores(
+    datos
+  ) {
+    const cuerpo =
+      dgElemento(
+        'dgTablaAsesor'
+      );
+
+    if (!cuerpo) {
+      return;
+    }
+
+    const lista =
+      Array.isArray(datos)
+        ? datos
+        : [];
+
+    if (!lista.length) {
+      cuerpo.innerHTML =
+        dgFilaVacia(
+          8,
+          'No existen asesores para los filtros seleccionados.'
+        );
+
+      return;
+    }
+
+    cuerpo.innerHTML =
+      lista.map(item => `
+        <tr>
+          <td>
+            <strong>
+              ${dgEscape(item.nombre)}
+            </strong>
+          </td>
+
+          <td class="dg-numero">
+            ${dgNumero(item.tickets)}
+          </td>
+
+          <td class="dg-atendido">
+            ${dgNumero(item.atendidos)}
+          </td>
+
+          <td class="dg-activo">
+            ${dgNumero(item.activos)}
+          </td>
+
+          <td>
+            ${dgNumero(item.reevaluados)}
+          </td>
+
+          <td>
+            ${dgDecimal(
+              item.porcentajeAtendidos
+            )} %
+          </td>
+
+          <td>
+            ${dgNumero(
+              item.casosConTiempo
+            )}
+          </td>
+
+          <td>
+            <span class="dg-tiempo">
+              ${dgEscape(
+                item.tiempoPromedio ||
+                '0 min'
+              )}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  function dgPintarMayorTiempo(
+    datos
+  ) {
+    const cuerpo =
+      dgElemento(
+        'dgTablaMayorTiempo'
+      );
+
+    if (!cuerpo) {
+      return;
+    }
+
+    const lista =
+      Array.isArray(datos)
+        ? datos
+        : [];
+
+    if (!lista.length) {
+      cuerpo.innerHTML =
+        dgFilaVacia(
+          7,
+          'No existen casos atendidos con tiempo válido.'
+        );
+
+      return;
+    }
+
+    cuerpo.innerHTML =
+      lista.map(item => `
+        <tr>
+          <td>
+            <strong>
+              #${dgEscape(
+                item.ticket ||
+                item.numero ||
+                '-'
+              )}
+            </strong>
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.alumno || '-'
+            )}
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.campus || '-'
+            )}
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.asesor || '-'
+            )}
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.origen || '-'
+            )}
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.tipoTicket || '-'
+            )}
+          </td>
+
+          <td>
+            <span class="dg-tiempo">
+              ${dgEscape(
+                item.tiempoTotal ||
+                '0 min'
+              )}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  function dgPintarAuditoria(
+    datos
+  ) {
+    const cuerpo =
+      dgElemento(
+        'dgTablaAuditoria'
+      );
+
+    if (!cuerpo) {
+      return;
+    }
+
+    const lista =
+      Array.isArray(datos)
+        ? datos
+        : [];
+
+    if (!lista.length) {
+      cuerpo.innerHTML =
+        dgFilaVacia(
+          8,
+          'No existen modificaciones para los filtros seleccionados.'
+        );
+
+      return;
+    }
+
+    cuerpo.innerHTML =
+      lista.map(item => `
+        <tr>
+          <td>
+            <strong>
+              #${dgEscape(
+                item.ticket ||
+                item.numero ||
+                '-'
+              )}
+            </strong>
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.alumno || '-'
+            )}
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.campus || '-'
+            )}
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.asesor || '-'
+            )}
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.tipoTicket || '-'
+            )}
+          </td>
+
+          <td class="dg-alerta-cambio">
+            ${dgNumero(item.cambios)}
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.fechaActualizacion ||
+              '-'
+            )}
+          </td>
+
+          <td>
+            ${dgEscape(
+              item.usuario || '-'
+            )}
+          </td>
+        </tr>
+      `).join('');
+  }
+
+  function dgPintarTendencia() {
+    const contenedor =
+      dgElemento(
+        'dgGraficoTendencia'
+      );
+
+    if (
+      !contenedor ||
+      !estadoDG.datos
+    ) {
+      return;
+    }
+
+    const lista =
+      estadoDG.tendencia ===
+        'mensual'
+        ? estadoDG
+            .datos
+            .tendenciaMensual
+        : estadoDG
+            .datos
+            .tendenciaDiaria;
+
+    const registros =
+      Array.isArray(lista)
+        ? lista
+        : [];
+
+    if (!registros.length) {
+      contenedor.innerHTML = `
+        <div class="dg-vacio">
+          No existen datos para construir la tendencia.
+        </div>
+      `;
+
+      return;
+    }
+
+    const ancho =
+      Math.max(
+        760,
+        registros.length * 34
+      );
+
+    const alto = 310;
+    const izquierda = 52;
+    const derecha = 20;
+    const superior = 20;
+    const inferior = 46;
+
+    const anchoGrafico =
+      ancho -
+      izquierda -
+      derecha;
+
+    const altoGrafico =
+      alto -
+      superior -
+      inferior;
+
+    const maximo =
+      Math.max(
+        ...registros.map(
+          item =>
+            Number(
+              item.ingresados || 0
+            )
+        ),
+        ...registros.map(
+          item =>
+            Number(
+              item.atendidos || 0
+            )
+        ),
+        ...registros.map(
+          item =>
+            Number(
+              item.actualizados || 0
+            )
+        ),
+        1
+      );
+
+    function puntoX(indice) {
+      if (registros.length <= 1) {
+        return (
+          izquierda +
+          anchoGrafico / 2
+        );
+      }
+
+      return (
+        izquierda +
+        indice /
+        (
+          registros.length - 1
+        ) *
+        anchoGrafico
+      );
+    }
+
+    function puntoY(valor) {
+      return (
+        superior +
+        altoGrafico -
+        (
+          Number(valor || 0) /
+          maximo *
+          altoGrafico
+        )
+      );
+    }
+
+    function serie(
+      campo,
+      color
+    ) {
+      const puntos =
+        registros.map(
+          (item, indice) => ({
+            x: puntoX(indice),
+            y: puntoY(item[campo]),
+            valor:
+              Number(
+                item[campo] || 0
+              ),
+            fecha:
+              item.fecha || ''
+          })
+        );
+
+      const linea =
+        puntos
+          .map(
+            punto =>
+              `${punto.x},${punto.y}`
+          )
+          .join(' ');
+
+      return `
+        <polyline
+          points="${linea}"
+          fill="none"
+          stroke="${color}"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        ></polyline>
+
+        ${puntos.map(punto => `
+          <circle
+            cx="${punto.x}"
+            cy="${punto.y}"
+            r="3.5"
+            fill="${color}"
+          >
+            <title>
+              ${dgEscape(
+                punto.fecha
+              )}: ${dgNumero(
+                punto.valor
+              )}
+            </title>
+          </circle>
+        `).join('')}
+      `;
+    }
+
+    const lineas = [];
+
+    for (
+      let indice = 0;
+      indice <= 5;
+      indice++
+    ) {
+      const valor =
+        Math.round(
+          maximo -
+          maximo /
+          5 *
+          indice
+        );
+
+      const y =
+        superior +
+        altoGrafico /
+        5 *
+        indice;
+
+      lineas.push(`
+        <line
+          x1="${izquierda}"
+          y1="${y}"
+          x2="${izquierda + anchoGrafico}"
+          y2="${y}"
+          stroke="#e2e8f0"
+          stroke-width="1"
+        ></line>
+
+        <text
+          x="${izquierda - 8}"
+          y="${y + 4}"
+          text-anchor="end"
+          fill="#64748b"
+          font-size="10"
+        >
+          ${valor}
+        </text>
+      `);
+    }
+
+    const salto =
+      Math.max(
+        1,
+        Math.ceil(
+          registros.length / 10
+        )
+      );
+
+    const etiquetas =
+      registros
+        .map(
+          (item, indice) => {
+            if (
+              indice % salto !== 0 &&
+              indice !==
+                registros.length - 1
+            ) {
+              return '';
+            }
+
+            return `
+              <text
+                x="${puntoX(indice)}"
+                y="${alto - 18}"
+                text-anchor="middle"
+                fill="#64748b"
+                font-size="9"
+              >
+                ${dgEscape(
+                  item.fecha
+                )}
+              </text>
+            `;
+          }
+        )
+        .join('');
+
+    contenedor.innerHTML = `
+      <svg
+        width="${ancho}"
+        height="${alto}"
+        viewBox="0 0 ${ancho} ${alto}"
+        role="img"
+        aria-label="Tendencia de tickets"
+      >
+        ${lineas.join('')}
+
+        ${serie(
+          'ingresados',
+          '#2563eb'
+        )}
+
+        ${serie(
+          'atendidos',
+          '#16a34a'
+        )}
+
+        ${serie(
+          'actualizados',
+          '#f97316'
+        )}
+
+        ${etiquetas}
+      </svg>
+    `;
+  }
+
+  function dgCambiarTendencia(modo) {
+    estadoDG.tendencia =
+      modo === 'mensual'
+        ? 'mensual'
+        : 'diaria';
+
+    dgElemento(
+      'dgBotonTendenciaDiaria'
+    )?.classList.toggle(
+      'activo',
+      estadoDG.tendencia ===
+        'diaria'
+    );
+
+    dgElemento(
+      'dgBotonTendenciaMensual'
+    )?.classList.toggle(
+      'activo',
+      estadoDG.tendencia ===
+        'mensual'
+    );
+
+    dgPintarTendencia();
+  }
+
+  function dgPintarDashboard(
+    resultado
+  ) {
+    estadoDG.datos =
+      resultado;
+
+    dgPintarCatalogos(
+      resultado.catalogos
+    );
+
+    dgPintarIndicadores(
+      resultado.resumen
+    );
+
+    dgPintarBarras(
+      'dgGraficoCampus',
+      resultado.porCampus
+    );
+
+    dgPintarBarras(
+      'dgGraficoAsesor',
+      resultado.porAsesor
+    );
+
+    dgPintarBarras(
+      'dgGraficoTipoTicket',
+      resultado.porTipoTicket
+    );
+
+    dgPintarBarras(
+      'dgGraficoReevaluacion',
+      resultado
+        .porTipoReevaluacion
+    );
+
+    dgPintarBarras(
+      'dgGraficoOrigen',
+      resultado.porOrigen
+    );
+
+    dgPintarBarras(
+      'dgGraficoConvalidacion',
+      resultado
+        .porTipoConvalidacion
+    );
+
+    dgPintarBarras(
+      'dgGraficoIngreso',
+      resultado.porTipoIngreso
+    );
+
+    dgPintarTablaCampus(
+      resultado.porCampus
+    );
+
+    dgPintarTablaAsesores(
+      resultado.porAsesor
+    );
+
+    dgPintarMayorTiempo(
+      resultado.casosMayorTiempo
+    );
+
+    dgPintarAuditoria(
+      resultado.auditoria
+    );
+
+    dgPintarTendencia();
+    dgActualizarResumenFiltros();
+
+    const cache =
+      resultado.desdeCache
+        ? ' · información temporal'
+        : '';
+
+    dgPonerTexto(
+      'dgSelloActualizacion',
+      `Actualizado: ${
+        resultado.generadoEn ||
+        'ahora'
+      }${cache}`
+    );
+
+    dgPonerTexto(
+      'dgPieGenerado',
+      `${dgNumero(
+        resultado.cantidadFiltrada
+      )} tickets analizados · Generado ${
+        resultado.generadoEn || ''
+      }`
+    );
+  }
+
+  function dgCargarDashboard(
+    forzar = false
+  ) {
+    if (estadoDG.cargando) {
+      return;
+    }
+
+    if (!dgValidarFechas()) {
+      return;
+    }
+
+    const token =
+      dgObtenerToken();
+
+    if (!token) {
+      dgMostrarMensaje(
+        'No se encontró una sesión activa. Vuelve a ingresar.',
+        'error'
+      );
+
+      return;
+    }
+
+    dgMostrarCarga(true);
+    dgMostrarMensaje('');
+
+    google.script.run
+      .withSuccessHandler(
+        resultado => {
+          dgMostrarCarga(false);
+
+          if (
+            !resultado ||
+            !resultado.ok
+          ) {
+            dgMostrarMensaje(
+              resultado?.message ||
+              'No se pudo generar el Dashboard Gerencial.',
+              'error'
+            );
+
+            return;
+          }
+
+          dgPintarDashboard(
+            resultado
+          );
+
+          dgMostrarMensaje(
+            resultado.desdeCache
+              ? 'Información gerencial mostrada correctamente.'
+              : 'Dashboard gerencial actualizado correctamente.',
+            'ok'
+          );
+        }
+      )
+      .withFailureHandler(
+        error => {
+          dgMostrarCarga(false);
+
+          dgMostrarMensaje(
+            error?.message ||
+            'Ocurrió un error al cargar el Dashboard Gerencial.',
+            'error'
+          );
+        }
+      )
+      .obtenerDashboardGerencial(
+        token,
+        dgObtenerFiltros(forzar)
+      );
+  }
+
+  function dgVincular(
+    id,
+    evento,
+    funcion
+  ) {
+    const elemento =
+      dgElemento(id);
+
+    if (
+      !elemento ||
+      elemento.dataset
+        .dgVinculado === 'SI'
+    ) {
+      return;
+    }
+
+    elemento.dataset
+      .dgVinculado = 'SI';
+
+    elemento.addEventListener(
+      evento,
+      funcion
+    );
+  }
+
+  function dgInicializarEventos() {
+    if (estadoDG.iniciado) {
+      return;
+    }
+
+    estadoDG.iniciado = true;
+
+    dgVincular(
+      'dgBotonActualizar',
+      'click',
+      () =>
+        dgCargarDashboard(true)
+    );
+
+    dgVincular(
+      'dgBotonAplicarFiltros',
+      'click',
+      () =>
+        dgCargarDashboard(false)
+    );
+
+    dgVincular(
+      'dgBotonLimpiarFiltros',
+      'click',
+      dgLimpiarFiltros
+    );
+
+    dgVincular(
+      'dgBotonTendenciaDiaria',
+      'click',
+      () =>
+        dgCambiarTendencia(
+          'diaria'
+        )
+    );
+
+    dgVincular(
+      'dgBotonTendenciaMensual',
+      'click',
+      () =>
+        dgCambiarTendencia(
+          'mensual'
+        )
+    );
+
+    [
+      'dgFechaDesde',
+      'dgFechaHasta',
+      'dgCampus',
+      'dgAsesor',
+      'dgOrigen',
+      'dgTipoTicket',
+      'dgTipoReevaluacion',
+      'dgTipoConvalidacion',
+      'dgTipoIngreso'
+    ].forEach(id => {
+      dgVincular(
+        id,
+        'change',
+        dgActualizarResumenFiltros
+      );
+    });
+  }
+
+  window.inicializarDashboardGerencial =
+    function () {
+      dgInicializarEventos();
+    };
+
+  window.cargarDashboardGerencial =
+    function (
+      forzar = false
+    ) {
+      dgInicializarEventos();
+
+      dgCargarDashboard(
+        Boolean(forzar)
+      );
+    };
+
+  window.limpiarDashboardGerencial =
+    function () {
+      estadoDG.datos = null;
+      estadoDG.cargando = false;
+      estadoDG.tendencia =
+        'diaria';
+    };
+
+  if (
+    document.readyState ===
+    'loading'
+  ) {
+    document.addEventListener(
+      'DOMContentLoaded',
+      dgInicializarEventos
+    );
+
+  } else {
+    dgInicializarEventos();
+  }
+})();
+</script>
