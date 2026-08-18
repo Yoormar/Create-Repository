@@ -1,0 +1,1330 @@
+<style>
+/* =========================================================
+   MENSAJES
+========================================================= */
+
+.mensaje {
+  min-height: 24px !important;
+  margin-top: 12px !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  line-height: 1.4 !important;
+}
+
+.mensaje-error {
+  color: #b42318 !important;
+}
+
+.mensaje-ok {
+  color: #067647 !important;
+}
+
+
+/* =========================================================
+   BOTÓN PORTAL DE LA BANDEJA
+========================================================= */
+
+.boton-portal-directo {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow:
+    0 0 0 4px #dcfce7;
+}
+
+.boton-portal-directo:hover:not(:disabled) {
+  background: #15803d;
+  transform: scale(1.06);
+}
+
+.boton-portal-directo:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+
+/* =========================================================
+   CALENDARIO SEMANAL
+========================================================= */
+
+.calendario-semanal-final {
+  display: grid;
+  gap: 16px;
+}
+
+.cabecera-calendario-semanal {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.cabecera-calendario-semanal h3 {
+  margin: 0 0 5px;
+}
+
+.cabecera-calendario-semanal p {
+  margin: 0;
+}
+
+.calendario-semanal-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      7,
+      minmax(120px, 1fr)
+    );
+  gap: 10px;
+}
+
+.dia-semanal {
+  position: relative;
+  min-height: 92px;
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 9px;
+  border: 1px solid #d0d5dd;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.dia-semanal:hover {
+  border-color: #667085;
+  transform: translateY(-1px);
+}
+
+.dia-semanal input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dia-semanal strong {
+  font-size: 14px;
+}
+
+.dia-semanal span {
+  color: #067647;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dia-semanal:has(input:checked) {
+  border-color: #f04438;
+  background: #fff1f0;
+}
+
+.dia-semanal:has(input:checked) span {
+  color: #b42318;
+}
+
+.acciones-calendario-semanal {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.nota-calendario-semanal {
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   ACTUALIZACIÓN AUTOMÁTICA
+========================================================= */
+
+.control-auto-actualizacion {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border: 1px solid #d8dee8;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.control-auto-actualizacion label {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.control-auto-actualizacion select {
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid #d0d5dd;
+  border-radius: 7px;
+  background: #ffffff;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   MODAL MÁS COMPACTO
+========================================================= */
+
+#modalTicket .modal {
+  width: min(880px, 100%);
+  max-height: 96vh;
+}
+
+#modalTicket .modal-header {
+  padding: 13px 18px;
+}
+
+#modalTicket .modal-body {
+  padding: 14px 18px;
+}
+
+#modalTicket .modal-footer {
+  padding: 12px 18px;
+}
+
+#modalTicket .grid-datos {
+  gap: 9px 12px;
+}
+
+#modalTicket .grupo {
+  margin-bottom: 9px;
+}
+
+#modalTicket textarea.campo {
+  min-height: 68px;
+  max-height: 90px;
+}
+
+#modalTicket .separador {
+  margin: 11px 0;
+}
+
+#modalTicket .resumen-ticket {
+  margin-top: 8px;
+  gap: 7px;
+}
+
+
+/* =========================================================
+   AVISO GENERAL
+========================================================= */
+
+#avisoFinalGlobal {
+  position: fixed;
+  top: 86px;
+  right: 20px;
+  z-index: 9999;
+  max-width: 430px;
+  padding: 14px 17px;
+  border-radius: 11px;
+  background: #111111;
+  color: #ffffff;
+  box-shadow:
+    0 18px 45px
+    rgba(15, 23, 42, 0.24);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+#avisoFinalGlobal.aviso-error {
+  background: #b42318;
+}
+
+#avisoFinalGlobal.aviso-ok {
+  background: #067647;
+}
+
+
+@media (max-width: 1000px) {
+  .calendario-semanal-grid {
+    grid-template-columns:
+      repeat(
+        4,
+        minmax(120px, 1fr)
+      );
+  }
+}
+
+
+@media (max-width: 650px) {
+  .calendario-semanal-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(120px, 1fr)
+      );
+  }
+
+  .control-auto-actualizacion {
+    width: 100%;
+  }
+
+  .control-auto-actualizacion select {
+    flex: 1;
+  }
+}
+</style>
+
+
+<script>
+(function () {
+  const DIAS_SEMANA_FINAL = [
+    {
+      clave: 'LUNES',
+      nombre: 'Lunes'
+    },
+    {
+      clave: 'MARTES',
+      nombre: 'Martes'
+    },
+    {
+      clave: 'MIERCOLES',
+      nombre: 'Miércoles'
+    },
+    {
+      clave: 'JUEVES',
+      nombre: 'Jueves'
+    },
+    {
+      clave: 'VIERNES',
+      nombre: 'Viernes'
+    },
+    {
+      clave: 'SABADO',
+      nombre: 'Sábado'
+    },
+    {
+      clave: 'DOMINGO',
+      nombre: 'Domingo'
+    }
+  ];
+
+  let temporizadorActualizacionFinal =
+    null;
+
+  let filtroInicialResponsableAplicado =
+    false;
+
+
+  /* =======================================================
+     AVISOS
+  ======================================================= */
+
+  function mostrarAvisoFinal(
+    texto,
+    tipo
+  ) {
+    let aviso =
+      document.getElementById(
+        'avisoFinalGlobal'
+      );
+
+    if (!aviso) {
+      aviso =
+        document.createElement(
+          'div'
+        );
+
+      aviso.id =
+        'avisoFinalGlobal';
+
+      document.body.appendChild(
+        aviso
+      );
+    }
+
+    aviso.className =
+      tipo === 'error'
+        ? 'aviso-error'
+        : 'aviso-ok';
+
+    aviso.textContent =
+      texto || '';
+
+    aviso.classList.remove(
+      'oculto'
+    );
+
+    window.clearTimeout(
+      aviso._temporizador
+    );
+
+    aviso._temporizador =
+      window.setTimeout(
+        () => {
+          aviso.classList.add(
+            'oculto'
+          );
+        },
+        4500
+      );
+  }
+
+
+  /* =======================================================
+     FILTRO RESPONSABLE
+  ======================================================= */
+
+  const llenarFiltrosOriginalFinal =
+    window.llenarFiltros;
+
+  if (
+    typeof llenarFiltrosOriginalFinal ===
+    'function'
+  ) {
+    window.llenarFiltros =
+      function () {
+        llenarFiltrosOriginalFinal();
+
+        if (
+          !filtroInicialResponsableAplicado
+        ) {
+          const selector =
+            document.getElementById(
+              'filtroResponsable'
+            );
+
+          if (selector) {
+            selector.value = '';
+          }
+
+          filtroInicialResponsableAplicado =
+            true;
+        }
+      };
+  }
+
+
+  /* =======================================================
+     OCULTAR N° Y TICKET DEL MODAL
+  ======================================================= */
+
+  function ocultarCamposSuperioresTicketFinal() {
+    [
+      'editNumero',
+      'editTicket'
+    ].forEach(
+      id => {
+        const elemento =
+          document.getElementById(id);
+
+        const grupo =
+          elemento
+            ? elemento.closest(
+                '.grupo'
+              )
+            : null;
+
+        if (grupo) {
+          grupo.style.display =
+            'none';
+        }
+      }
+    );
+  }
+
+
+  const pintarModalTicketOriginalFinal =
+    window.pintarModalTicket;
+
+  if (
+    typeof pintarModalTicketOriginalFinal ===
+    'function'
+  ) {
+    window.pintarModalTicket =
+      function (
+        ticket,
+        permisos
+      ) {
+        pintarModalTicketOriginalFinal(
+          ticket,
+          permisos
+        );
+
+        ocultarCamposSuperioresTicketFinal();
+      };
+  }
+
+
+  /* =======================================================
+     GUARDAR TICKET
+  ======================================================= */
+
+  window.guardarTicketActual =
+    function () {
+      if (
+        !window.estado ||
+        !estado.ticketActual
+      ) {
+        return;
+      }
+
+      const datos =
+        recopilarEdicionTicket();
+
+      if (!datos.campus) {
+        mostrarMensaje(
+          'mensajeTicket',
+          'Selecciona el Campus'
+        );
+
+        return;
+      }
+
+      if (!datos.tipoIngreso) {
+        mostrarMensaje(
+          'mensajeTicket',
+          'Selecciona el Tipo de ingreso'
+        );
+
+        return;
+      }
+
+      if (
+        !datos.tipoConvalidacion
+      ) {
+        mostrarMensaje(
+          'mensajeTicket',
+          'Selecciona el Tipo de convalidación'
+        );
+
+        return;
+      }
+
+      if (
+        normalizarCliente(
+          estado.ticketActual
+            .tipoTicket
+        ) === 'REEVALUADO' &&
+        !datos.tipoReevaluacion
+      ) {
+        mostrarMensaje(
+          'mensajeTicket',
+          'Selecciona el Tipo de reevaluación'
+        );
+
+        return;
+      }
+
+      const boton =
+        document.getElementById(
+          'botonGuardarTicket'
+        );
+
+      if (boton) {
+        boton.disabled = true;
+        boton.textContent =
+          'Guardando...';
+      }
+
+      mostrarMensaje(
+        'mensajeTicket',
+        'Guardando cambios...',
+        'ok'
+      );
+
+      google.script.run
+        .withSuccessHandler(
+          resultado => {
+            if (boton) {
+              boton.disabled =
+                false;
+
+              boton.textContent =
+                'Guardar cambios';
+            }
+
+            if (
+              !resultado ||
+              !resultado.ok
+            ) {
+              mostrarMensaje(
+                'mensajeTicket',
+                resultado?.message ||
+                'No se pudo guardar el ticket'
+              );
+
+              return;
+            }
+
+            mostrarMensaje(
+              'mensajeTicket',
+              resultado.message ||
+              'Ticket actualizado correctamente',
+              'ok'
+            );
+
+            mostrarAvisoFinal(
+              resultado.message ||
+              'Ticket actualizado correctamente',
+              'ok'
+            );
+
+            cargarTickets();
+
+            if (
+              estado.sesion?.rol ===
+              'ADMIN'
+            ) {
+              cargarDashboardAdmin();
+            }
+
+            window.setTimeout(
+              cerrarModalTicket,
+              850
+            );
+          }
+        )
+        .withFailureHandler(
+          error => {
+            if (boton) {
+              boton.disabled =
+                false;
+
+              boton.textContent =
+                'Guardar cambios';
+            }
+
+            mostrarMensaje(
+              'mensajeTicket',
+              error?.message ||
+              'Error al guardar el ticket'
+            );
+          }
+        )
+        .guardarTicketFinal(
+          estado.token,
+          datos
+        );
+    };
+
+
+  /* =======================================================
+     REPORTE PORTAL
+  ======================================================= */
+
+  function ejecutarReportePortalFinal(
+    numero,
+    boton
+  ) {
+    if (!numero) {
+      mostrarAvisoFinal(
+        'No se identificó el ticket',
+        'error'
+      );
+
+      return;
+    }
+
+    if (
+      !window.confirm(
+        '¿Confirmas que deseas reportar y liberar este ticket Portal?'
+      )
+    ) {
+      return;
+    }
+
+    if (boton) {
+      boton.disabled =
+        true;
+
+      boton.textContent =
+        '…';
+    }
+
+    google.script.run
+      .withSuccessHandler(
+        resultado => {
+          if (boton) {
+            boton.disabled =
+              false;
+
+            boton.textContent =
+              '✓';
+          }
+
+          if (
+            !resultado ||
+            !resultado.ok
+          ) {
+            mostrarAvisoFinal(
+              resultado?.message ||
+              'No se pudo reportar el ticket Portal',
+              'error'
+            );
+
+            return;
+          }
+
+          mostrarAvisoFinal(
+            resultado.message ||
+            'Ticket Portal reportado',
+            'ok'
+          );
+
+          cargarTickets();
+
+          if (
+            estado.sesion?.rol ===
+            'ADMIN' &&
+            estado.vistaActual ===
+            'dashboard'
+          ) {
+            cargarDashboardAdmin();
+          }
+
+          if (
+            document
+              .getElementById(
+                'modalTicket'
+              )
+              ?.classList
+              .contains('oculto') ===
+            false
+          ) {
+            cerrarModalTicket();
+          }
+        }
+      )
+      .withFailureHandler(
+        error => {
+          if (boton) {
+            boton.disabled =
+              false;
+
+            boton.textContent =
+              '✓';
+          }
+
+          mostrarAvisoFinal(
+            error?.message ||
+            'Error al reportar el ticket Portal',
+            'error'
+          );
+        }
+      )
+      .reportarTicketPortalFinal(
+        estado.token,
+        numero
+      );
+  }
+
+
+  window.reportarTicketPortalActual =
+    function () {
+      const numero =
+        estado.ticketActual
+          ?.numero;
+
+      const boton =
+        document.getElementById(
+          'botonReportarPortal'
+        );
+
+      ejecutarReportePortalFinal(
+        numero,
+        boton
+      );
+    };
+
+
+  function activarBotonesPortalBandejaFinal() {
+    const contenedor =
+      document.getElementById(
+        'panelesTickets'
+      );
+
+    if (!contenedor) {
+      return;
+    }
+
+    contenedor
+      .querySelectorAll(
+        'tr'
+      )
+      .forEach(
+        fila => {
+          const indicador =
+            fila.querySelector(
+              '.check-ticket-portal.activo'
+            );
+
+          if (
+            !indicador ||
+            indicador.classList.contains(
+              'boton-portal-directo'
+            )
+          ) {
+            return;
+          }
+
+          const primeraCelda =
+            fila.querySelector(
+              'td'
+            );
+
+          const numero =
+            primeraCelda
+              ?.textContent
+              ?.trim() ||
+            '';
+
+          const boton =
+            document.createElement(
+              'button'
+            );
+
+          boton.type =
+            'button';
+
+          boton.className =
+            'boton-portal-directo';
+
+          boton.title =
+            'Reportar ticket Portal';
+
+          boton.textContent =
+            '✓';
+
+          boton.addEventListener(
+            'click',
+            evento => {
+              evento.preventDefault();
+              evento.stopPropagation();
+
+              ejecutarReportePortalFinal(
+                numero,
+                boton
+              );
+            }
+          );
+
+          indicador.replaceWith(
+            boton
+          );
+        }
+      );
+  }
+
+
+  const pintarPanelesOriginalFinal =
+    window.pintarPanelesTickets;
+
+  if (
+    typeof pintarPanelesOriginalFinal ===
+    'function'
+  ) {
+    window.pintarPanelesTickets =
+      function (tickets) {
+        pintarPanelesOriginalFinal(
+          tickets
+        );
+
+        window.setTimeout(
+          activarBotonesPortalBandejaFinal,
+          0
+        );
+      };
+  }
+
+
+  /* =======================================================
+     CALENDARIO SEMANAL
+  ======================================================= */
+
+  function htmlCalendarioSemanalFinal() {
+    return `
+      <div class="calendario-semanal-final">
+        <div class="cabecera-calendario-semanal">
+          <div>
+            <h3>
+              Calendario laboral semanal
+            </h3>
+
+            <p class="texto-secundario">
+              Marca únicamente los días que no deben recibir
+              cierres de tickets.
+            </p>
+          </div>
+
+          <button
+            id="botonGuardarSemanaFinal"
+            class="boton boton-principal"
+            type="button"
+          >
+            Guardar configuración
+          </button>
+        </div>
+
+        <div class="nota-calendario-semanal">
+          Los tickets guardados como Atendido a las 18:30
+          o después pasarán al siguiente día laborable.
+        </div>
+
+        <div
+          id="calendarioSemanalGridFinal"
+          class="calendario-semanal-grid"
+        >
+          ${DIAS_SEMANA_FINAL
+            .map(
+              dia => `
+                <label class="dia-semanal">
+                  <input
+                    type="checkbox"
+                    value="${dia.clave}"
+                    data-dia-no-laborable
+                  >
+
+                  <strong>
+                    ${dia.nombre}
+                  </strong>
+
+                  <span>
+                    Laborable
+                  </span>
+                </label>
+              `
+            )
+            .join('')}
+        </div>
+
+        <div
+          id="mensajeCalendarioSemanalFinal"
+          class="mensaje"
+        ></div>
+      </div>
+    `;
+  }
+
+
+  function actualizarTextoDiasFinal() {
+    document
+      .querySelectorAll(
+        '[data-dia-no-laborable]'
+      )
+      .forEach(
+        check => {
+          const texto =
+            check
+              .closest(
+                '.dia-semanal'
+              )
+              ?.querySelector(
+                'span'
+              );
+
+          if (texto) {
+            texto.textContent =
+              check.checked
+                ? 'No laborable'
+                : 'Laborable';
+          }
+        }
+      );
+  }
+
+
+  function cargarConfiguracionSemanalFinal() {
+    mostrarMensaje(
+      'mensajeCalendarioSemanalFinal',
+      'Cargando configuración...',
+      'ok'
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        resultado => {
+          if (
+            !resultado ||
+            !resultado.ok
+          ) {
+            mostrarMensaje(
+              'mensajeCalendarioSemanalFinal',
+              resultado?.message ||
+              'No se pudo cargar la configuración'
+            );
+
+            return;
+          }
+
+          const configuracion =
+            resultado.configuracion ||
+            {};
+
+          document
+            .querySelectorAll(
+              '[data-dia-no-laborable]'
+            )
+            .forEach(
+              check => {
+                check.checked =
+                  configuracion[
+                    check.value
+                  ] === false;
+
+                check.addEventListener(
+                  'change',
+                  actualizarTextoDiasFinal
+                );
+              }
+            );
+
+          actualizarTextoDiasFinal();
+
+          mostrarMensaje(
+            'mensajeCalendarioSemanalFinal',
+            '',
+            'ok'
+          );
+        }
+      )
+      .withFailureHandler(
+        error => {
+          mostrarMensaje(
+            'mensajeCalendarioSemanalFinal',
+            error?.message ||
+            'Error al cargar la configuración'
+          );
+        }
+      )
+      .obtenerConfiguracionSemanal(
+        estado.token
+      );
+  }
+
+
+  function guardarConfiguracionSemanalFinal() {
+    const noLaborables =
+      Array
+        .from(
+          document.querySelectorAll(
+            '[data-dia-no-laborable]:checked'
+          )
+        )
+        .map(
+          check =>
+            check.value
+        );
+
+    const boton =
+      document.getElementById(
+        'botonGuardarSemanaFinal'
+      );
+
+    if (boton) {
+      boton.disabled =
+        true;
+
+      boton.textContent =
+        'Guardando...';
+    }
+
+    mostrarMensaje(
+      'mensajeCalendarioSemanalFinal',
+      'Guardando configuración...',
+      'ok'
+    );
+
+    google.script.run
+      .withSuccessHandler(
+        resultado => {
+          if (boton) {
+            boton.disabled =
+              false;
+
+            boton.textContent =
+              'Guardar configuración';
+          }
+
+          if (
+            !resultado ||
+            !resultado.ok
+          ) {
+            mostrarMensaje(
+              'mensajeCalendarioSemanalFinal',
+              resultado?.message ||
+              'No se pudo guardar la configuración'
+            );
+
+            return;
+          }
+
+          mostrarMensaje(
+            'mensajeCalendarioSemanalFinal',
+            resultado.message,
+            'ok'
+          );
+
+          mostrarAvisoFinal(
+            resultado.message,
+            'ok'
+          );
+        }
+      )
+      .withFailureHandler(
+        error => {
+          if (boton) {
+            boton.disabled =
+              false;
+
+            boton.textContent =
+              'Guardar configuración';
+          }
+
+          mostrarMensaje(
+            'mensajeCalendarioSemanalFinal',
+            error?.message ||
+            'Error al guardar la configuración'
+          );
+        }
+      )
+      .guardarConfiguracionSemanal(
+        estado.token,
+        {
+          noLaborables
+        }
+      );
+  }
+
+
+  window.pintarCalendarioLaboral =
+    function () {
+      const panel =
+        document.querySelector(
+          '.panel-calendario-laboral'
+        );
+
+      if (!panel) {
+        return;
+      }
+
+      panel.innerHTML =
+        htmlCalendarioSemanalFinal();
+
+      document
+        .getElementById(
+          'botonGuardarSemanaFinal'
+        )
+        ?.addEventListener(
+          'click',
+          guardarConfiguracionSemanalFinal
+        );
+
+      cargarConfiguracionSemanalFinal();
+    };
+
+
+  /* =======================================================
+     ACTUALIZACIÓN AUTOMÁTICA
+  ======================================================= */
+
+  function refrescarSistemaFinal() {
+    const modal =
+      document.getElementById(
+        'modalTicket'
+      );
+
+    if (
+      modal &&
+      !modal.classList.contains(
+        'oculto'
+      )
+    ) {
+      return;
+    }
+
+    if (
+      estado.vistaActual ===
+      'dashboard' &&
+      estado.sesion?.rol ===
+      'ADMIN'
+    ) {
+      cargarDashboardAdmin();
+
+    } else {
+      cargarTickets();
+    }
+  }
+
+
+  function configurarAutoActualizacionFinal(
+    minutos
+  ) {
+    window.clearInterval(
+      temporizadorActualizacionFinal
+    );
+
+    temporizadorActualizacionFinal =
+      null;
+
+    const cantidad =
+      Number(minutos || 0);
+
+    localStorage.setItem(
+      'ticketsAutoActualizacion',
+      String(cantidad)
+    );
+
+    if (!cantidad) {
+      return;
+    }
+
+    temporizadorActualizacionFinal =
+      window.setInterval(
+        refrescarSistemaFinal,
+        cantidad * 60 * 1000
+      );
+  }
+
+
+  function insertarControlAutoActualizacionFinal() {
+    if (
+      document.getElementById(
+        'selectorAutoActualizacionFinal'
+      )
+    ) {
+      return;
+    }
+
+    const acciones =
+      document.querySelector(
+        '.acciones-superiores'
+      );
+
+    if (!acciones) {
+      return;
+    }
+
+    const contenedor =
+      document.createElement(
+        'div'
+      );
+
+    contenedor.className =
+      'control-auto-actualizacion';
+
+    contenedor.innerHTML = `
+      <label for="selectorAutoActualizacionFinal">
+        Autoactualizar:
+      </label>
+
+      <select id="selectorAutoActualizacionFinal">
+        <option value="0">
+          Desactivada
+        </option>
+
+        <option value="3">
+          3 minutos
+        </option>
+
+        <option value="5">
+          5 minutos
+        </option>
+
+        <option value="7">
+          7 minutos
+        </option>
+
+        <option value="10">
+          10 minutos
+        </option>
+      </select>
+    `;
+
+    acciones.insertBefore(
+      contenedor,
+      acciones.firstChild
+    );
+
+    const selector =
+      document.getElementById(
+        'selectorAutoActualizacionFinal'
+      );
+
+    const valorGuardado =
+      localStorage.getItem(
+        'ticketsAutoActualizacion'
+      ) || '0';
+
+    selector.value =
+      [
+        '0',
+        '3',
+        '5',
+        '7',
+        '10'
+      ].includes(
+        valorGuardado
+      )
+        ? valorGuardado
+        : '0';
+
+    selector.addEventListener(
+      'change',
+      () => {
+        configurarAutoActualizacionFinal(
+          selector.value
+        );
+
+        mostrarAvisoFinal(
+          selector.value === '0'
+            ? 'Actualización automática desactivada'
+            : `Actualización automática cada ${selector.value} minutos`,
+          'ok'
+        );
+      }
+    );
+
+    configurarAutoActualizacionFinal(
+      selector.value
+    );
+  }
+
+
+  /* =======================================================
+     INICIO
+  ======================================================= */
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    () => {
+      ocultarCamposSuperioresTicketFinal();
+
+      insertarControlAutoActualizacionFinal();
+
+      const selectorResponsable =
+        document.getElementById(
+          'filtroResponsable'
+        );
+
+      if (selectorResponsable) {
+        selectorResponsable.value =
+          '';
+      }
+    }
+  );
+})();
+</script>
