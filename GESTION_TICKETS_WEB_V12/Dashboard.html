@@ -1,0 +1,624 @@
+<section
+  id="vistaDashboardAdmin"
+  class="dashboard-admin oculto"
+>
+  <!-- FILTROS PRINCIPALES -->
+  <div class="filtros-dashboard">
+    <select
+      id="dashMes"
+      class="campo"
+    ></select>
+
+    <select
+      id="dashAnio"
+      class="campo"
+    ></select>
+
+    <select
+      id="dashPlataforma"
+      class="campo"
+    >
+      <option value="">
+        Todas las plataformas
+      </option>
+
+      <option value="ZENDESK">
+        Zendesk
+      </option>
+
+      <option value="PORTAL">
+        Portal
+      </option>
+
+      <option value="DYNAMIC">
+        Dynamic
+      </option>
+    </select>
+
+    <select
+      id="dashAsesor"
+      class="campo"
+    >
+      <option value="">
+        Seleccionar asesor
+      </option>
+    </select>
+
+    <button
+      id="botonActualizarDashboard"
+      class="boton boton-principal"
+      type="button"
+    >
+      Actualizar dashboard
+    </button>
+  </div>
+
+  <!-- SELECTOR DE VISTA -->
+  <div
+    class="selector-vista-dashboard"
+    role="tablist"
+    aria-label="Vista del dashboard"
+  >
+    <button
+      id="botonVistaGlobalDashboard"
+      class="boton-vista-dashboard activo"
+      type="button"
+      role="tab"
+      aria-selected="true"
+    >
+      Vista global
+    </button>
+
+    <button
+      id="botonVistaDiariaDashboard"
+      class="boton-vista-dashboard"
+      type="button"
+      role="tab"
+      aria-selected="false"
+    >
+      Vista diaria
+    </button>
+  </div>
+
+  <!-- =====================================================
+       VISTA DIARIA
+  ====================================================== -->
+
+  <section
+    id="vistaDiariaDashboard"
+    class="vista-diaria-dashboard oculto"
+  >
+    <div class="cabecera-vista-diaria">
+      <div>
+        <h3>
+          Tickets atendidos por día
+        </h3>
+
+        <p class="texto-secundario">
+          Se contabilizan por FECHA FIN y únicamente cuando
+          el detalle es Atendido.
+        </p>
+      </div>
+
+      <select
+        id="filtroDiaDashboard"
+        class="campo filtro-dia-dashboard"
+      >
+        <option value="">
+          Todos los días del periodo
+        </option>
+      </select>
+    </div>
+
+    <section
+      class="tarjetas kpi-dashboard kpi-diario-dashboard"
+    >
+      <article class="tarjeta tarjeta-kpi">
+        <span>
+          Total atendidos del periodo
+        </span>
+
+        <strong id="dashDiarioTotalPeriodo">
+          0
+        </strong>
+      </article>
+
+      <article class="tarjeta tarjeta-kpi">
+        <span>
+          Días con atención
+        </span>
+
+        <strong id="dashDiarioDiasActivos">
+          0
+        </strong>
+      </article>
+
+      <article class="tarjeta tarjeta-kpi">
+        <span>
+          Promedio diario
+        </span>
+
+        <strong id="dashDiarioPromedio">
+          0
+        </strong>
+      </article>
+
+      <article class="tarjeta tarjeta-kpi">
+        <span>
+          Mayor atención en un día
+        </span>
+
+        <strong id="dashDiarioMaximo">
+          0
+        </strong>
+      </article>
+    </section>
+
+    <section class="panel-dashboard">
+      <div class="tabla-wrap">
+        <table class="tabla-dashboard">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Atendidos Zendesk</th>
+              <th>Atendidos Portal</th>
+              <th data-v12-dynamic="SI">Atendidos Dynamic</th>
+              <th>Total atendidos</th>
+            </tr>
+          </thead>
+
+          <tbody
+            id="cuerpoVistaDiariaDashboard"
+          ></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
+  <!-- =====================================================
+       VISTA GLOBAL
+  ====================================================== -->
+
+  <div id="vistaGlobalDashboard">
+
+    <!-- KPI PRINCIPALES -->
+    <section class="tarjetas kpi-dashboard">
+      <article
+        class="tarjeta tarjeta-kpi tarjeta-kpi-activos"
+      >
+        <span>
+          Total activos
+        </span>
+
+        <strong id="dashActivos">
+          0
+        </strong>
+      </article>
+
+      <article
+        class="tarjeta tarjeta-kpi tarjeta-kpi-zendesk"
+      >
+        <span>
+          Atendidos Zendesk
+        </span>
+
+        <strong id="dashAtendidosZendesk">
+          0
+        </strong>
+      </article>
+
+      <article
+        class="tarjeta tarjeta-kpi tarjeta-kpi-portal"
+      >
+        <span>
+          Atendidos Portal
+        </span>
+
+        <strong id="dashAtendidosPortal">
+          0
+        </strong>
+      </article>
+
+      <article
+        class="tarjeta tarjeta-kpi tarjeta-kpi-dynamic"
+      >
+        <span>
+          Atendidos Dynamic
+        </span>
+
+        <strong id="dashAtendidosDynamic">
+          0
+        </strong>
+      </article>
+
+      <article
+        class="tarjeta tarjeta-kpi tarjeta-kpi-atendidos"
+      >
+        <span>
+          Total atendidos
+        </span>
+
+        <strong id="dashTotalAtendidos">
+          0
+        </strong>
+      </article>
+
+      <article
+        class="tarjeta tarjeta-kpi tarjeta-kpi-alertas-portal"
+      >
+        <span>
+          Portal reportados
+        </span>
+
+        <strong id="dashAlertasPortal">
+          0
+        </strong>
+      </article>
+    </section>
+
+    <!-- INFORMACIÓN DEL ASESOR -->
+    <div class="dashboard-grid">
+      <section class="panel-dashboard">
+        <div class="asesor-cabecera">
+          <div>
+            <h3 id="dashNombreAsesor">
+              Selecciona un asesor
+            </h3>
+
+            <div class="texto-secundario">
+              <span id="dashActivosAsesor">
+                0
+              </span>
+
+              activos ·
+
+              <span id="dashAtendidosAsesor">
+                0
+              </span>
+
+              atendidos · Tiempo promedio:
+
+              <span id="dashTiempoPromedio">
+                0 minutos
+              </span>
+            </div>
+          </div>
+
+          <span
+            id="dashDisponibilidad"
+            class="etiqueta-disponibilidad disponible"
+          >
+            Disponible
+          </span>
+        </div>
+
+        <div class="estados-asesor">
+          <button class="estado-asesor" data-detalle="En revisión" type="button">
+            <span>En revisión</span>
+            <strong id="dashEstadoRevision">0</strong>
+          </button>
+
+          <button class="estado-asesor" data-detalle="Pendiente" type="button">
+            <span>Pendiente</span>
+            <strong id="dashEstadoPendiente">0</strong>
+          </button>
+
+          <button class="estado-asesor" data-detalle="En espera" type="button">
+            <span>En espera</span>
+            <strong id="dashEstadoEspera">0</strong>
+          </button>
+
+          <button class="estado-asesor" data-detalle="Seguimiento" type="button">
+            <span>Seguimiento</span>
+            <strong id="dashEstadoSeguimiento">0</strong>
+          </button>
+
+          <button class="estado-asesor" data-detalle="Derivado" type="button">
+            <span>Derivado</span>
+            <strong id="dashEstadoDerivado">0</strong>
+          </button>
+
+          <button class="estado-asesor" data-detalle="Atendido" type="button">
+            <span>Atendido</span>
+            <strong id="dashEstadoAtendido">0</strong>
+          </button>
+        </div>
+      </section>
+
+      <!-- ATENDIDOS POR PLATAFORMA -->
+      <section class="panel-dashboard">
+        <h3>Atendidos por plataforma</h3>
+
+        <div class="barra-item">
+          <div class="barra-etiqueta">
+            <span>Zendesk</span>
+            <strong id="dashAsesorZendesk">0</strong>
+          </div>
+          <div class="barra-fondo">
+            <div id="barraAsesorZendesk" class="barra-valor"></div>
+          </div>
+        </div>
+
+        <div class="barra-item">
+          <div class="barra-etiqueta">
+            <span>Portal</span>
+            <strong id="dashAsesorPortal">0</strong>
+          </div>
+          <div class="barra-fondo">
+            <div id="barraAsesorPortal" class="barra-valor"></div>
+          </div>
+        </div>
+
+        <div class="barra-item">
+          <div class="barra-etiqueta">
+            <span>Dynamic</span>
+            <strong id="dashAsesorDynamic">0</strong>
+          </div>
+          <div class="barra-fondo">
+            <div id="barraAsesorDynamic" class="barra-valor barra-valor-dynamic"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- TICKETS REPORTADOS PORTAL -->
+    <section class="panel-dashboard panel-alertas-portal">
+      <div class="titulo-panel-flex">
+        <div>
+          <h3>Tickets reportados Portal</h3>
+          <p class="texto-secundario">
+            Tickets liberados por un asesor porque ya tiene
+            otro ticket Portal en atención.
+          </p>
+        </div>
+
+        <div class="acciones-alertas-portal">
+          <span id="contadorAlertasPortal" class="contador-alertas contador-alertas-portal">0 pendientes</span>
+          <button id="botonProcesarAlertasPortal" class="boton boton-principal" type="button">Reasignar automáticamente</button>
+        </div>
+      </div>
+
+      <div class="tabla-wrap tabla-alertas-portal-wrap">
+        <table class="tabla-dashboard tabla-alertas-portal">
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th>DNI</th>
+              <th>Alumno</th>
+              <th>Responsable anterior</th>
+              <th>Fecha/Hora</th>
+              <th>Usuario que reportó</th>
+              <th>Mensaje</th>
+              <th>Nuevo responsable</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoAlertasPortal">
+            <tr><td colspan="9" class="vacio">No existen tickets Portal reportados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="mensajeAlertasPortal" class="mensaje"></div>
+    </section>
+
+    <!-- ALERTAS DE DATOS -->
+    <section class="panel-dashboard panel-alertas-datos">
+      <div class="cabecera-alertas-datos">
+        <button id="botonToggleAlertasDatos" class="boton-toggle-alertas-datos" type="button" aria-expanded="false">
+          <span id="iconoToggleAlertasDatos">▶</span>
+          <span>
+            <strong>Alertas de datos</strong>
+            <small>Tickets activos sin Campus, tipo de convalidación, tipo de ingreso o tipo de reevaluación.</small>
+          </span>
+        </button>
+        <div class="acciones-alertas-datos">
+          <span id="contadorAlertasDatos" class="contador-alertas-datos">0 pendientes</span>
+          <button id="botonNotificarTodosDatos" class="boton boton-secundario" type="button">Notificar todos</button>
+        </div>
+      </div>
+      <div id="contenidoAlertasDatos" class="contenido-alertas-datos oculto">
+        <div id="listaAlertasDatos" class="alertas-datos-grid"></div>
+      </div>
+    </section>
+
+    <!-- SIGUIENTE ASESOR RECOMENDADO -->
+    <section class="panel-dashboard panel-recomendacion">
+      <div class="titulo-panel-flex">
+        <div>
+          <h3>Siguiente asesor recomendado</h3>
+          <p class="texto-secundario">Se respeta la menor carga del día y el orden rotativo configurado.</p>
+        </div>
+      </div>
+
+      <div id="siguienteAsesorDashboard" class="asignacion-panel">
+        <div class="asignacion-resumen">
+          <strong id="nombreSiguienteAsesor">Sin asesor disponible</strong>
+          <span id="detalleSiguienteAsesor">Revisa las alertas y habilitaciones.</span>
+        </div>
+        <div class="asignacion-controles">
+          <select id="ticketPendienteAsignacion" class="campo">
+            <option value="">Sin tickets Zendesk/Dynamic pendientes</option>
+          </select>
+          <select id="asesorAsignacionManual" class="campo">
+            <option value="">Usar asesor recomendado</option>
+          </select>
+          <button id="botonRegistrarAsignacion" class="boton boton-principal" type="button" disabled>Asignar ticket</button>
+
+          <label id="controlAutomaticoV12" class="v12-auto-control" title="Asigna automáticamente tickets Zendesk y Dynamic según disponibilidad y carga del día">
+            <input id="checkAutomaticoV12" type="checkbox">
+            <span>Automático</span>
+            <span id="contadorAutomaticoV12" class="v12-auto-contador">OFF</span>
+          </label>
+
+          <span id="pendientesV12" class="v12-chip-pendientes">Z 0 · D 0</span>
+
+          <button id="botonProcesarAutomaticos" class="boton boton-secundario" type="button">Procesar pendientes</button>
+        </div>
+        <div id="antecedenteAsignacion" class="antecedente-asignacion oculto"></div>
+      </div>
+    </section>
+
+    <!-- ALERTAS DE ASIGNACIÓN -->
+    <section class="panel-dashboard panel-alertas">
+      <div class="titulo-panel-flex">
+        <div>
+          <h3>Alertas de asignación</h3>
+          <p class="texto-secundario">Dos revisiones o combinación de revisión con atendido o seguimiento.</p>
+        </div>
+        <span id="cantidadAlertasDashboard" class="contador-alertas">0 alertas</span>
+      </div>
+      <div id="alertasAsignacionDashboard" class="alertas-grid"></div>
+    </section>
+
+    <!-- DISPONIBILIDAD -->
+    <section class="panel-dashboard">
+      <div class="titulo-panel-flex">
+        <div>
+          <h3>Disponibilidad del equipo</h3>
+          <p class="texto-secundario">Identifica rápidamente quién tiene menor carga activa y está disponible para asignación.</p>
+        </div>
+        <span id="dashCantidadDisponibles" class="contador-disponibles">0 disponibles</span>
+      </div>
+      <div id="listaDisponibilidadAsesores" class="disponibilidad-grid"></div>
+    </section>
+
+    <!-- CALENDARIO LABORAL -->
+    <section class="panel-dashboard panel-calendario-laboral">
+      <div class="titulo-panel-flex">
+        <div>
+          <h3>Calendario laboral</h3>
+          <p class="texto-secundario">Configura feriados, días no laborables y fines de semana que deben considerarse laborables.</p>
+        </div>
+        <span id="contadorCalendarioLaboral" class="contador-calendario">0 fechas configuradas</span>
+      </div>
+
+      <div class="formulario-calendario-laboral">
+        <div class="grupo-calendario">
+          <label for="calendarioFecha">Fecha</label>
+          <input id="calendarioFecha" class="campo" type="date">
+        </div>
+        <div class="grupo-calendario">
+          <label for="calendarioLaborable">¿Es laborable?</label>
+          <select id="calendarioLaborable" class="campo">
+            <option value="NO">NO — No laborable</option>
+            <option value="SI">SÍ — Laborable</option>
+          </select>
+        </div>
+        <div class="grupo-calendario grupo-calendario-descripcion">
+          <label for="calendarioDescripcion">Descripción</label>
+          <input id="calendarioDescripcion" class="campo" type="text" maxlength="200" placeholder="Ejemplo: Fiestas Patrias">
+        </div>
+        <div class="acciones-calendario">
+          <button id="botonGuardarCalendario" class="boton boton-principal" type="button">Guardar fecha</button>
+          <button id="botonLimpiarCalendario" class="boton boton-secundario" type="button">Limpiar</button>
+        </div>
+      </div>
+
+      <div id="mensajeCalendario" class="mensaje"></div>
+
+      <div class="tabla-wrap tabla-calendario-wrap">
+        <table class="tabla-dashboard tabla-calendario-laboral">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Condición</th>
+              <th>Descripción</th>
+              <th>Usuario</th>
+              <th>Última actualización</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoCalendarioLaboral">
+            <tr><td colspan="6" class="vacio">No existen fechas configuradas.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ATENCIÓN DIARIA GLOBAL -->
+    <section class="panel-dashboard panel-diario-global">
+      <h3 id="tituloAtencionDiaria">Atención diaria global</h3>
+      <div class="tabla-wrap tabla-diaria-global-scroll">
+        <table class="tabla-dashboard tabla-dashboard-compacta">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Ing. Zendesk</th>
+              <th>Ing. Portal</th>
+              <th>Total ing.</th>
+              <th>ATC Zendesk</th>
+              <th>ATC Portal</th>
+              <th>Total ATC</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoDiarioDashboard"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CAMPUS -->
+    <section class="panel-dashboard panel-campus-dashboard">
+      <h3>Tickets por campus</h3>
+      <div id="campusDashboard"></div>
+    </section>
+
+    <!-- TABLAS INFERIORES -->
+    <div class="dashboard-grid dashboard-grid-inferior">
+      <section class="panel-dashboard panel-atencion-diaria-ordenable">
+        <div class="cabecera-tabla-ordenable">
+          <div>
+            <h3>Atención diaria</h3>
+            <p class="texto-secundario">Ordena la tabla según la fecha o la cantidad atendida.</p>
+          </div>
+          <select id="ordenAtencionDiaria" class="campo selector-orden-diario">
+            <option value="fecha_desc">Fecha Z–A · reciente a antigua</option>
+            <option value="fecha_asc">Fecha A–Z · antigua a reciente</option>
+            <option value="total_desc">Total ATC · mayor a menor</option>
+            <option value="total_asc">Total ATC · menor a mayor</option>
+            <option value="zendesk_desc">ATC Zendesk · mayor a menor</option>
+            <option value="portal_desc">ATC Portal · mayor a menor</option>
+          </select>
+        </div>
+        <div class="tabla-wrap tabla-atencion-diaria-scroll">
+          <table class="tabla-atencion-diaria">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>ATC Zendesk</th>
+                <th>ATC Portal</th>
+                <th>Total ATC</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpoAtencionDiariaOrdenable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel-dashboard panel-ranking-global">
+        <div class="titulo-ranking-global">
+          <div>
+            <h3>Ranking global de atención</h3>
+            <p class="texto-secundario">Se ordena automáticamente por la cantidad global de tickets atendidos.</p>
+          </div>
+        </div>
+        <div class="tabla-wrap tabla-ranking-scroll">
+          <table class="tabla-ranking-atencion">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Asesor</th>
+                <th>ATC Zendesk hoy</th>
+                <th>ATC Portal hoy</th>
+                <th>Total ATC hoy</th>
+                <th>Global</th>
+              </tr>
+            </thead>
+            <tbody id="rankingDashboard"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="mensajeDashboard" class="mensaje"></div>
+</section>
