@@ -1,26 +1,63 @@
 <style>
 /* =========================================================
-   ASIGNACION AUTOMATICA V10 UI
+   ASIGNACION AUTOMATICA V10.1 UI
 ========================================================= */
 
-.av10-modo-auto {
+.av10-auto-box {
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 170px;
   padding: 8px 12px;
   border: 1px solid #bbf7d0;
-  border-radius: 9px;
+  border-radius: 10px;
   background: #f0fdf4;
   color: #166534;
-  font-size: 12px;
-  font-weight: 800;
+  box-sizing: border-box;
 }
 
-.av10-punto-auto {
+.av10-auto-titulo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.av10-auto-punto {
   width: 8px;
   height: 8px;
   border-radius: 999px;
   background: #16a34a;
+  box-shadow: 0 0 0 3px #dcfce7;
+}
+
+.av10-auto-contador {
+  margin-top: 2px;
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 900;
+}
+
+.av10-auto-estado {
+  margin-top: 3px;
+  color: #667085;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.av10-auto-box.procesando {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.av10-auto-box.alerta {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b42318;
 }
 
 .av10-toast {
@@ -48,16 +85,25 @@
 (function () {
   'use strict';
 
-  if (window.__ASIGNACION_AUTOMATICA_V10_UI__) {
+  if (window.__ASIGNACION_AUTOMATICA_V101_UI__) {
     return;
   }
 
-  window.__ASIGNACION_AUTOMATICA_V10_UI__ = true;
+  window.__ASIGNACION_AUTOMATICA_V101_UI__ = true;
 
+  const INTERVALO_AUTO_MS = 60 * 1000;
+  const INTERVALO_AVISOS_MS = 15 * 1000;
+
+  let procesandoAuto = false;
+  let proximoAutoMs = Date.now() + INTERVALO_AUTO_MS;
+  let temporizadorAuto = null;
+  let temporizadorContador = null;
+  let temporizadorAvisos = null;
+  let temporizadorSesion = null;
+  let triggerVerificado = false;
+  let automaticoIniciado = false;
   let ultimoAvisoMs = Date.now();
-  let intervaloAvisos = null;
   let audioContexto = null;
-  let triggerAutoVerificado = false;
 
   function av10(id) {
     return document.getElementById(id);
@@ -76,222 +122,362 @@
   }
 
   function av10EsAdmin() {
-    return av10Normalizar(
-      estado?.sesion?.rol
-    ) === 'ADMIN';
+    return av10Normalizar(estado?.sesion?.rol) === 'ADMIN';
   }
 
-  function av10ForzarDashboard() {
-    if (estado?.vistaActual !== 'dashboard') {
-      return;
-    }
-
-    if (
-      typeof window.cargarDashboardCompleto === 'function'
-    ) {
-      window.cargarDashboardCompleto();
-      return;
-    }
-
-    if (typeof window.cargarDashboardAdmin === 'function') {
-      window.cargarDashboardAdmin(true);
-    }
-  }
-
-  function av10VincularActualizarSuperior() {
-    const boton = av10('botonActualizar');
-
-    if (!boton || boton.dataset.av10 === 'SI') {
-      return;
-    }
-
-    boton.dataset.av10 = 'SI';
-
-    boton.addEventListener(
-      'click',
-      evento => {
-        if (estado?.vistaActual !== 'dashboard') {
-          return;
-        }
-
-        evento.preventDefault();
-        evento.stopImmediatePropagation();
-        av10ForzarDashboard();
-      },
-      true
-    );
-  }
-
-  function av10VincularActualizarDashboard() {
-    const boton = av10('botonActualizarDashboard');
-
-    if (!boton || boton.dataset.av10 === 'SI') {
-      return;
-    }
-
-    boton.dataset.av10 = 'SI';
-
-    boton.addEventListener(
-      'click',
-      evento => {
-        evento.preventDefault();
-        evento.stopImmediatePropagation();
-        av10ForzarDashboard();
-      },
-      true
-    );
-  }
-
-  function av10ActualizarBotonManual() {
-    const boton = av10('botonProcesarAutomaticos');
-
-    if (!boton) {
-      return;
-    }
-
-    boton.textContent = 'Manual: procesar pendientes';
-    boton.title =
-      'Respaldo manual para asignar pendientes de Zendesk y Dynamic';
-  }
-
-  function av10AgregarIndicadorAuto() {
-    if (av10('av10ModoAutomatico')) {
+  function av10CrearContador() {
+    if (av10('av10AutoBox')) {
       return;
     }
 
     const boton = av10('botonProcesarAutomaticos');
-
     if (!boton) {
       return;
     }
 
-    const etiqueta = document.createElement('span');
-    etiqueta.id = 'av10ModoAutomatico';
-    etiqueta.className = 'av10-modo-auto';
-    etiqueta.innerHTML = `
-      <span class="av10-punto-auto"></span>
-      Automático: Zendesk + Dynamic
+    const caja = document.createElement('div');
+    caja.id = 'av10AutoBox';
+    caja.className = 'av10-auto-box';
+    caja.innerHTML = `
+      <div class="av10-auto-titulo">
+        <span class="av10-auto-punto"></span>
+        Automático activo
+      </div>
+      <div id="av10AutoContador" class="av10-auto-contador">00:59</div>
+      <div id="av10AutoEstado" class="av10-auto-estado">
+        Zendesk + Dynamic
+      </div>
     `;
 
-    boton.insertAdjacentElement('beforebegin', etiqueta);
+    boton.insertAdjacentElement('beforebegin', caja);
   }
 
-  function av10ProcesarManual() {
-    const boton = av10('botonProcesarAutomaticos');
+  function av10Estado(texto, tipo) {
+    const caja = av10('av10AutoBox');
+    const estadoTexto = av10('av10AutoEstado');
 
-    if (boton) {
+    if (estadoTexto) {
+      estadoTexto.textContent = texto || 'Zendesk + Dynamic';
+    }
+
+    if (caja) {
+      caja.classList.remove('procesando', 'alerta');
+      if (tipo) {
+        caja.classList.add(tipo);
+      }
+    }
+  }
+
+  function av10ActualizarContador() {
+    const contador = av10('av10AutoContador');
+    if (!contador) {
+      return;
+    }
+
+    if (procesandoAuto) {
+      contador.textContent = 'ASIGNANDO';
+      return;
+    }
+
+    const restante = Math.max(0, proximoAutoMs - Date.now());
+    const segundos = Math.ceil(restante / 1000);
+    const minutos = Math.floor(segundos / 60);
+    const resto = segundos % 60;
+
+    contador.textContent =
+      String(minutos).padStart(2, '0') +
+      ':' +
+      String(resto).padStart(2, '0');
+  }
+
+  function av10ReiniciarContador() {
+    proximoAutoMs = Date.now() + INTERVALO_AUTO_MS;
+    av10ActualizarContador();
+  }
+
+  function av10MensajeResultado(resultado, manual) {
+    const asignados = Number(resultado?.totalAsignados || 0);
+    const errores = Array.isArray(resultado?.errores)
+      ? resultado.errores
+      : [];
+
+    if (asignados > 0) {
+      av10Estado(
+        `${asignados} asignado${asignados === 1 ? '' : 's'} correctamente`,
+        ''
+      );
+      return;
+    }
+
+    if (errores.length) {
+      const motivo = errores[0]?.message || 'No se pudo asignar';
+      av10Estado(`No asignado: ${motivo}`, 'alerta');
+
+      if (manual && typeof mostrarMensaje === 'function') {
+        mostrarMensaje(
+          'mensajeDashboard',
+          `No se asignó. Motivo: ${motivo}`
+        );
+      }
+      return;
+    }
+
+    av10Estado('Sin pendientes Zendesk/Dynamic', '');
+  }
+
+  function av10ProcesarAsignacion(opciones) {
+    const config = opciones || {};
+
+    if (!av10EsAdmin() || procesandoAuto) {
+      if (typeof config.alFinal === 'function') {
+        config.alFinal();
+      }
+      return;
+    }
+
+    procesandoAuto = true;
+    av10Estado('Buscando pendientes y asesor disponible...', 'procesando');
+    av10ActualizarContador();
+
+    const boton = av10('botonProcesarAutomaticos');
+    if (config.manual && boton) {
       boton.disabled = true;
       boton.textContent = 'Procesando...';
     }
 
-    if (typeof mostrarMensaje === 'function') {
-      mostrarMensaje(
-        'mensajeDashboard',
-        'Procesando pendientes Zendesk y Dynamic...',
-        'ok'
-      );
-    }
-
     google.script.run
-      .withSuccessHandler(
-        resultado => {
-          if (boton) {
-            boton.disabled = false;
-            boton.textContent = 'Manual: procesar pendientes';
-          }
+      .withSuccessHandler(resultado => {
+        procesandoAuto = false;
+        av10ReiniciarContador();
 
-          if (typeof mostrarMensaje === 'function') {
+        if (config.manual && boton) {
+          boton.disabled = false;
+          boton.textContent = 'Manual: procesar pendientes';
+        }
+
+        if (!resultado?.ok) {
+          av10Estado(
+            resultado?.message || 'Error en asignación automática',
+            'alerta'
+          );
+
+          if (config.manual && typeof mostrarMensaje === 'function') {
             mostrarMensaje(
               'mensajeDashboard',
-              resultado?.message ||
-                'Procesamiento finalizado',
-              resultado?.ok ? 'ok' : 'error'
+              resultado?.message || 'No se pudo procesar la asignación'
             );
           }
 
-          if (resultado?.ok) {
-            if (
-              typeof window.cargarDashboardOperativoRapido === 'function'
-            ) {
-              window.cargarDashboardOperativoRapido();
-            }
-
-            if (typeof cargarTickets === 'function') {
-              cargarTickets();
-            }
+          if (typeof config.alFinal === 'function') {
+            config.alFinal(resultado);
           }
+          return;
         }
-      )
-      .withFailureHandler(
-        error => {
-          if (boton) {
-            boton.disabled = false;
-            boton.textContent = 'Manual: procesar pendientes';
+
+        av10MensajeResultado(resultado, config.manual);
+
+        if (Number(resultado.totalAsignados || 0) > 0) {
+          if (typeof cargarTickets === 'function') {
+            cargarTickets();
           }
 
-          if (typeof mostrarMensaje === 'function') {
-            mostrarMensaje(
-              'mensajeDashboard',
-              error?.message ||
-                'Error al procesar pendientes'
-            );
+          if (
+            estado?.vistaActual === 'dashboard' &&
+            typeof window.cargarDashboardOperativoRapido === 'function'
+          ) {
+            window.cargarDashboardOperativoRapido();
           }
         }
-      )
+
+        if (config.manual && typeof mostrarMensaje === 'function') {
+          mostrarMensaje(
+            'mensajeDashboard',
+            resultado.message || 'Procesamiento finalizado',
+            'ok'
+          );
+        }
+
+        if (typeof config.alFinal === 'function') {
+          config.alFinal(resultado);
+        }
+      })
+      .withFailureHandler(error => {
+        procesandoAuto = false;
+        av10ReiniciarContador();
+        av10Estado(
+          error?.message || 'Error al procesar pendientes',
+          'alerta'
+        );
+
+        if (config.manual && boton) {
+          boton.disabled = false;
+          boton.textContent = 'Manual: procesar pendientes';
+        }
+
+        if (config.manual && typeof mostrarMensaje === 'function') {
+          mostrarMensaje(
+            'mensajeDashboard',
+            error?.message || 'Error al procesar pendientes'
+          );
+        }
+
+        if (typeof config.alFinal === 'function') {
+          config.alFinal();
+        }
+      })
       .procesarAsignacionAutomaticaCanalesV10(
         estado.token
       );
   }
 
-  function av10VincularManual() {
-    const boton = av10('botonProcesarAutomaticos');
-
-    if (!boton || boton.dataset.av10Manual === 'SI') {
+  function av10AsegurarTrigger() {
+    if (!av10EsAdmin() || triggerVerificado) {
       return;
     }
 
-    boton.dataset.av10Manual = 'SI';
-
-    boton.addEventListener(
-      'click',
-      evento => {
-        evento.preventDefault();
-        evento.stopImmediatePropagation();
-        av10ProcesarManual();
-      },
-      true
-    );
-  }
-
-  function av10HabilitarAutomatico() {
-    if (
-      !av10EsAdmin() ||
-      triggerAutoVerificado
-    ) {
-      return;
-    }
-
-    triggerAutoVerificado = true;
+    triggerVerificado = true;
 
     google.script.run
-      .withSuccessHandler(() => {})
-      .withFailureHandler(() => {
-        triggerAutoVerificado = false;
+      .withSuccessHandler(resultado => {
+        if (!resultado?.ok) {
+          triggerVerificado = false;
+          av10Estado(
+            resultado?.message || 'No se pudo activar el automático',
+            'alerta'
+          );
+          return;
+        }
+
+        av10Estado('Automático activo · Zendesk + Dynamic', '');
+      })
+      .withFailureHandler(error => {
+        triggerVerificado = false;
+        av10Estado(
+          error?.message || 'No se pudo activar el automático',
+          'alerta'
+        );
       })
       .asegurarAsignacionAutomaticaV10(
         estado.token
       );
   }
 
+  function av10IniciarAutomaticoAdmin() {
+    if (!av10EsAdmin()) {
+      return;
+    }
+
+    av10CrearContador();
+    av10AsegurarTrigger();
+
+    if (!automaticoIniciado) {
+      automaticoIniciado = true;
+      av10ReiniciarContador();
+
+      /* Revisa inmediatamente al entrar. */
+      window.setTimeout(
+        () => av10ProcesarAsignacion({ manual: false }),
+        800
+      );
+
+      temporizadorAuto = window.setInterval(() => {
+        av10ProcesarAsignacion({ manual: false });
+      }, INTERVALO_AUTO_MS);
+
+      temporizadorContador = window.setInterval(
+        av10ActualizarContador,
+        1000
+      );
+    }
+  }
+
+  function av10VincularManual() {
+    const boton = av10('botonProcesarAutomaticos');
+    if (!boton || boton.dataset.av101Manual === 'SI') {
+      return;
+    }
+
+    boton.dataset.av101Manual = 'SI';
+    boton.textContent = 'Manual: procesar pendientes';
+    boton.title = 'Respaldo manual para Zendesk y Dynamic';
+
+    boton.addEventListener(
+      'click',
+      evento => {
+        evento.preventDefault();
+        evento.stopImmediatePropagation();
+        av10ProcesarAsignacion({ manual: true });
+      },
+      true
+    );
+  }
+
+  function av10EnvolverActualizacionDashboard() {
+    const anterior = window.cargarDashboardAdmin;
+
+    if (
+      typeof anterior !== 'function' ||
+      anterior.__av101Auto
+    ) {
+      return;
+    }
+
+    const nueva = function () {
+      const argumentos = arguments;
+
+      /*
+       * La actualización visual no se detiene.
+       * La asignación corre en paralelo cada vez que
+       * el dashboard se actualiza, manual o automáticamente.
+       */
+      const resultado = anterior.apply(this, argumentos);
+
+      if (av10EsAdmin()) {
+        av10ProcesarAsignacion({ manual: false });
+      }
+
+      return resultado;
+    };
+
+    nueva.__av101Auto = true;
+    window.cargarDashboardAdmin = nueva;
+  }
+
+  function av10VincularBotonesActualizar() {
+    ['botonActualizar', 'botonActualizarDashboard']
+      .forEach(id => {
+        const boton = av10(id);
+        if (!boton || boton.dataset.av101Actualizar === 'SI') {
+          return;
+        }
+
+        boton.dataset.av101Actualizar = 'SI';
+
+        boton.addEventListener(
+          'click',
+          evento => {
+            if (estado?.vistaActual !== 'dashboard') {
+              return;
+            }
+
+            evento.preventDefault();
+            evento.stopImmediatePropagation();
+
+            av10ProcesarAsignacion({ manual: false });
+
+            if (typeof window.cargarDashboardAdmin === 'function') {
+              window.cargarDashboardAdmin(true);
+            }
+          },
+          true
+        );
+      });
+  }
+
   function av10SonarCampana() {
     try {
-      const AudioCtx =
-        window.AudioContext ||
-        window.webkitAudioContext;
-
-      if (!AudioCtx) {
-        return;
-      }
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
 
       if (!audioContexto) {
         audioContexto = new AudioCtx();
@@ -304,7 +490,6 @@
       const ahora = audioContexto.currentTime;
       const ganancia = audioContexto.createGain();
       ganancia.connect(audioContexto.destination);
-
       ganancia.gain.setValueAtTime(0.0001, ahora);
       ganancia.gain.exponentialRampToValueAtTime(0.16, ahora + 0.01);
       ganancia.gain.exponentialRampToValueAtTime(0.0001, ahora + 0.9);
@@ -324,8 +509,7 @@
   }
 
   function av10Toast(notificacion) {
-    const anterior = av10('av10Toast');
-    anterior?.remove();
+    av10('av10Toast')?.remove();
 
     const toast = document.createElement('div');
     toast.id = 'av10Toast';
@@ -337,43 +521,30 @@
     `;
 
     document.body.appendChild(toast);
-
-    window.setTimeout(() => {
-      toast.remove();
-    }, 6000);
+    window.setTimeout(() => toast.remove(), 6000);
   }
 
   function av10ConsultarAvisos() {
-    if (
-      !estado?.token ||
-      av10EsAdmin()
-    ) {
+    if (!estado?.token || av10EsAdmin()) {
       return;
     }
 
     google.script.run
-      .withSuccessHandler(
-        resultado => {
-          if (!resultado?.ok) {
-            return;
-          }
+      .withSuccessHandler(resultado => {
+        if (!resultado?.ok) return;
 
-          const lista = resultado.notificaciones || [];
+        const lista = resultado.notificaciones || [];
+        lista.forEach(notificacion => {
+          av10SonarCampana();
+          av10Toast(notificacion);
+        });
 
-          lista.forEach(notificacion => {
-            av10SonarCampana();
-            av10Toast(notificacion);
-          });
+        ultimoAvisoMs = Number(resultado.ahoraMs || Date.now());
 
-          ultimoAvisoMs = Number(
-            resultado.ahoraMs || Date.now()
-          );
-
-          if (lista.length && typeof cargarTickets === 'function') {
-            cargarTickets();
-          }
+        if (lista.length && typeof cargarTickets === 'function') {
+          cargarTickets();
         }
-      )
+      })
       .withFailureHandler(() => {})
       .obtenerNotificacionesAsignacionV10(
         estado.token,
@@ -382,27 +553,23 @@
   }
 
   function av10IniciarAvisos() {
-    if (intervaloAvisos) {
+    if (temporizadorAvisos) {
       return;
     }
 
-    intervaloAvisos = window.setInterval(
+    temporizadorAvisos = window.setInterval(
       av10ConsultarAvisos,
-      15000
+      INTERVALO_AVISOS_MS
     );
   }
 
-  function av10PermitirAudioTrasInteraccion() {
+  function av10PermitirAudio() {
     const activar = () => {
       try {
-        const AudioCtx =
-          window.AudioContext ||
-          window.webkitAudioContext;
-
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (AudioCtx && !audioContexto) {
           audioContexto = new AudioCtx();
         }
-
         if (audioContexto?.state === 'suspended') {
           audioContexto.resume().catch(() => {});
         }
@@ -415,24 +582,47 @@
     });
   }
 
+  function av10EsperarSesion() {
+    if (temporizadorSesion) {
+      return;
+    }
+
+    temporizadorSesion = window.setInterval(() => {
+      if (!estado?.sesion) {
+        return;
+      }
+
+      av10VincularManual();
+      av10CrearContador();
+
+      if (av10EsAdmin()) {
+        av10IniciarAutomaticoAdmin();
+        av10VincularBotonesActualizar();
+      }
+    }, 800);
+  }
+
   function av10Preparar() {
-    av10VincularActualizarSuperior();
-    av10VincularActualizarDashboard();
-    av10ActualizarBotonManual();
-    av10AgregarIndicadorAuto();
     av10VincularManual();
-    av10HabilitarAutomatico();
-    av10PermitirAudioTrasInteraccion();
+    av10CrearContador();
+    av10EnvolverActualizacionDashboard();
+    av10VincularBotonesActualizar();
+    av10PermitirAudio();
     av10IniciarAvisos();
+    av10EsperarSesion();
+
+    if (av10EsAdmin()) {
+      av10IniciarAutomaticoAdmin();
+    }
   }
 
   if (document.readyState === 'loading') {
     document.addEventListener(
       'DOMContentLoaded',
-      () => window.setTimeout(av10Preparar, 300)
+      () => window.setTimeout(av10Preparar, 350)
     );
   } else {
-    window.setTimeout(av10Preparar, 300);
+    window.setTimeout(av10Preparar, 350);
   }
 })();
 </script>
