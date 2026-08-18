@@ -1,0 +1,438 @@
+<style>
+/* =========================================================
+   ASIGNACION AUTOMATICA V10 UI
+========================================================= */
+
+.av10-modo-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 9px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.av10-punto-auto {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #16a34a;
+}
+
+.av10-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 10000;
+  max-width: 360px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #111827;
+  color: #ffffff;
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.28);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.av10-toast strong {
+  display: block;
+  margin-bottom: 4px;
+}
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  if (window.__ASIGNACION_AUTOMATICA_V10_UI__) {
+    return;
+  }
+
+  window.__ASIGNACION_AUTOMATICA_V10_UI__ = true;
+
+  let ultimoAvisoMs = Date.now();
+  let intervaloAvisos = null;
+  let audioContexto = null;
+  let triggerAutoVerificado = false;
+
+  function av10(id) {
+    return document.getElementById(id);
+  }
+
+  function av10Normalizar(valor) {
+    if (typeof normalizarCliente === 'function') {
+      return normalizarCliente(valor);
+    }
+
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toUpperCase();
+  }
+
+  function av10EsAdmin() {
+    return av10Normalizar(
+      estado?.sesion?.rol
+    ) === 'ADMIN';
+  }
+
+  function av10ForzarDashboard() {
+    if (estado?.vistaActual !== 'dashboard') {
+      return;
+    }
+
+    if (
+      typeof window.cargarDashboardCompleto === 'function'
+    ) {
+      window.cargarDashboardCompleto();
+      return;
+    }
+
+    if (typeof window.cargarDashboardAdmin === 'function') {
+      window.cargarDashboardAdmin(true);
+    }
+  }
+
+  function av10VincularActualizarSuperior() {
+    const boton = av10('botonActualizar');
+
+    if (!boton || boton.dataset.av10 === 'SI') {
+      return;
+    }
+
+    boton.dataset.av10 = 'SI';
+
+    boton.addEventListener(
+      'click',
+      evento => {
+        if (estado?.vistaActual !== 'dashboard') {
+          return;
+        }
+
+        evento.preventDefault();
+        evento.stopImmediatePropagation();
+        av10ForzarDashboard();
+      },
+      true
+    );
+  }
+
+  function av10VincularActualizarDashboard() {
+    const boton = av10('botonActualizarDashboard');
+
+    if (!boton || boton.dataset.av10 === 'SI') {
+      return;
+    }
+
+    boton.dataset.av10 = 'SI';
+
+    boton.addEventListener(
+      'click',
+      evento => {
+        evento.preventDefault();
+        evento.stopImmediatePropagation();
+        av10ForzarDashboard();
+      },
+      true
+    );
+  }
+
+  function av10ActualizarBotonManual() {
+    const boton = av10('botonProcesarAutomaticos');
+
+    if (!boton) {
+      return;
+    }
+
+    boton.textContent = 'Manual: procesar pendientes';
+    boton.title =
+      'Respaldo manual para asignar pendientes de Zendesk y Dynamic';
+  }
+
+  function av10AgregarIndicadorAuto() {
+    if (av10('av10ModoAutomatico')) {
+      return;
+    }
+
+    const boton = av10('botonProcesarAutomaticos');
+
+    if (!boton) {
+      return;
+    }
+
+    const etiqueta = document.createElement('span');
+    etiqueta.id = 'av10ModoAutomatico';
+    etiqueta.className = 'av10-modo-auto';
+    etiqueta.innerHTML = `
+      <span class="av10-punto-auto"></span>
+      Automático: Zendesk + Dynamic
+    `;
+
+    boton.insertAdjacentElement('beforebegin', etiqueta);
+  }
+
+  function av10ProcesarManual() {
+    const boton = av10('botonProcesarAutomaticos');
+
+    if (boton) {
+      boton.disabled = true;
+      boton.textContent = 'Procesando...';
+    }
+
+    if (typeof mostrarMensaje === 'function') {
+      mostrarMensaje(
+        'mensajeDashboard',
+        'Procesando pendientes Zendesk y Dynamic...',
+        'ok'
+      );
+    }
+
+    google.script.run
+      .withSuccessHandler(
+        resultado => {
+          if (boton) {
+            boton.disabled = false;
+            boton.textContent = 'Manual: procesar pendientes';
+          }
+
+          if (typeof mostrarMensaje === 'function') {
+            mostrarMensaje(
+              'mensajeDashboard',
+              resultado?.message ||
+                'Procesamiento finalizado',
+              resultado?.ok ? 'ok' : 'error'
+            );
+          }
+
+          if (resultado?.ok) {
+            if (
+              typeof window.cargarDashboardOperativoRapido === 'function'
+            ) {
+              window.cargarDashboardOperativoRapido();
+            }
+
+            if (typeof cargarTickets === 'function') {
+              cargarTickets();
+            }
+          }
+        }
+      )
+      .withFailureHandler(
+        error => {
+          if (boton) {
+            boton.disabled = false;
+            boton.textContent = 'Manual: procesar pendientes';
+          }
+
+          if (typeof mostrarMensaje === 'function') {
+            mostrarMensaje(
+              'mensajeDashboard',
+              error?.message ||
+                'Error al procesar pendientes'
+            );
+          }
+        }
+      )
+      .procesarAsignacionAutomaticaCanalesV10(
+        estado.token
+      );
+  }
+
+  function av10VincularManual() {
+    const boton = av10('botonProcesarAutomaticos');
+
+    if (!boton || boton.dataset.av10Manual === 'SI') {
+      return;
+    }
+
+    boton.dataset.av10Manual = 'SI';
+
+    boton.addEventListener(
+      'click',
+      evento => {
+        evento.preventDefault();
+        evento.stopImmediatePropagation();
+        av10ProcesarManual();
+      },
+      true
+    );
+  }
+
+  function av10HabilitarAutomatico() {
+    if (
+      !av10EsAdmin() ||
+      triggerAutoVerificado
+    ) {
+      return;
+    }
+
+    triggerAutoVerificado = true;
+
+    google.script.run
+      .withSuccessHandler(() => {})
+      .withFailureHandler(() => {
+        triggerAutoVerificado = false;
+      })
+      .asegurarAsignacionAutomaticaV10(
+        estado.token
+      );
+  }
+
+  function av10SonarCampana() {
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+      if (!AudioCtx) {
+        return;
+      }
+
+      if (!audioContexto) {
+        audioContexto = new AudioCtx();
+      }
+
+      if (audioContexto.state === 'suspended') {
+        audioContexto.resume().catch(() => {});
+      }
+
+      const ahora = audioContexto.currentTime;
+      const ganancia = audioContexto.createGain();
+      ganancia.connect(audioContexto.destination);
+
+      ganancia.gain.setValueAtTime(0.0001, ahora);
+      ganancia.gain.exponentialRampToValueAtTime(0.16, ahora + 0.01);
+      ganancia.gain.exponentialRampToValueAtTime(0.0001, ahora + 0.9);
+
+      [880, 1174.66].forEach((frecuencia, indice) => {
+        const oscilador = audioContexto.createOscillator();
+        oscilador.type = 'sine';
+        oscilador.frequency.setValueAtTime(
+          frecuencia,
+          ahora + indice * 0.08
+        );
+        oscilador.connect(ganancia);
+        oscilador.start(ahora + indice * 0.08);
+        oscilador.stop(ahora + 0.9);
+      });
+    } catch (error) {}
+  }
+
+  function av10Toast(notificacion) {
+    const anterior = av10('av10Toast');
+    anterior?.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'av10Toast';
+    toast.className = 'av10-toast';
+    toast.innerHTML = `
+      <strong>Nuevo ticket asignado</strong>
+      ${notificacion.origen || ''} ·
+      ${notificacion.ticket || notificacion.numero || ''}
+    `;
+
+    document.body.appendChild(toast);
+
+    window.setTimeout(() => {
+      toast.remove();
+    }, 6000);
+  }
+
+  function av10ConsultarAvisos() {
+    if (
+      !estado?.token ||
+      av10EsAdmin()
+    ) {
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(
+        resultado => {
+          if (!resultado?.ok) {
+            return;
+          }
+
+          const lista = resultado.notificaciones || [];
+
+          lista.forEach(notificacion => {
+            av10SonarCampana();
+            av10Toast(notificacion);
+          });
+
+          ultimoAvisoMs = Number(
+            resultado.ahoraMs || Date.now()
+          );
+
+          if (lista.length && typeof cargarTickets === 'function') {
+            cargarTickets();
+          }
+        }
+      )
+      .withFailureHandler(() => {})
+      .obtenerNotificacionesAsignacionV10(
+        estado.token,
+        ultimoAvisoMs
+      );
+  }
+
+  function av10IniciarAvisos() {
+    if (intervaloAvisos) {
+      return;
+    }
+
+    intervaloAvisos = window.setInterval(
+      av10ConsultarAvisos,
+      15000
+    );
+  }
+
+  function av10PermitirAudioTrasInteraccion() {
+    const activar = () => {
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          window.webkitAudioContext;
+
+        if (AudioCtx && !audioContexto) {
+          audioContexto = new AudioCtx();
+        }
+
+        if (audioContexto?.state === 'suspended') {
+          audioContexto.resume().catch(() => {});
+        }
+      } catch (error) {}
+    };
+
+    document.addEventListener('click', activar, {
+      once: true,
+      passive: true
+    });
+  }
+
+  function av10Preparar() {
+    av10VincularActualizarSuperior();
+    av10VincularActualizarDashboard();
+    av10ActualizarBotonManual();
+    av10AgregarIndicadorAuto();
+    av10VincularManual();
+    av10HabilitarAutomatico();
+    av10PermitirAudioTrasInteraccion();
+    av10IniciarAvisos();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener(
+      'DOMContentLoaded',
+      () => window.setTimeout(av10Preparar, 300)
+    );
+  } else {
+    window.setTimeout(av10Preparar, 300);
+  }
+})();
+</script>
