@@ -1,0 +1,24 @@
+name: Package UTP Tickets V12 for Chat
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build ZIP
+        run: |
+          zip -r UTP_TICKETS_12_0_4_ENTERPRISE.zip UTP_TICKETS_v12_0_ENTERPRISE
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: UTP_TICKETS_12_0_4_ENTERPRISE
+          path: UTP_TICKETS_12_0_4_ENTERPRISE.zip
+          if-no-files-found: error
