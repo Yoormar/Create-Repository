@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>
+    Dashboard Gerencial UTP
+  </title>
+
+  <?!= incluir('Estilos'); ?>
+
+  <style>
+    body {
+      margin: 0;
+      background: #f4f7fb;
+    }
+
+    .dg-pagina {
+      min-height: 100vh;
+    }
+
+    .dg-contenido-principal {
+      width: min(1600px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 20px 0 40px;
+    }
+
+    .dg-cabecera-sistema {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 24px;
+      background: #111827;
+      color: #ffffff;
+      box-shadow:
+        0 4px 16px
+        rgba(15, 23, 42, 0.16);
+    }
+
+    .dg-marca-sistema {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dg-logo {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border-radius: 10px;
+      background: #f97316;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .dg-marca-sistema strong {
+      display: block;
+      font-size: 16px;
+    }
+
+    .dg-marca-sistema span {
+      display: block;
+      margin-top: 2px;
+      color: #cbd5e1;
+      font-size: 11px;
+    }
+
+    .dg-usuario-sistema {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .dg-datos-usuario {
+      text-align: right;
+    }
+
+    .dg-datos-usuario strong {
+      display: block;
+      font-size: 12px;
+    }
+
+    .dg-datos-usuario span {
+      display: block;
+      margin-top: 2px;
+      color: #cbd5e1;
+      font-size: 10px;
+    }
+
+    .dg-boton-salir {
+      min-height: 36px;
+      padding: 8px 13px;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      background: transparent;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .dg-boton-salir:hover {
+      border-color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .dg-aviso-acceso {
+      display: none;
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border: 1px solid #fed7aa;
+      border-radius: 10px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .dg-aviso-acceso.activo {
+      display: block;
+    }
+
+    @media (max-width: 700px) {
+      .dg-cabecera-sistema {
+        align-items: flex-start;
+        padding: 12px 14px;
+      }
+
+      .dg-usuario-sistema {
+        align-items: flex-end;
+        flex-direction: column;
+        gap: 7px;
+      }
+
+      .dg-contenido-principal {
+        width: min(100% - 18px, 1600px);
+        padding-top: 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- =====================================================
+       INICIO DE SESIÓN GERENCIAL
+  ====================================================== -->
+
+  <main
+    id="paginaLoginGerencial"
+    class="pagina-login"
+  >
+    <section class="tarjeta-login">
+
+      <header class="cabecera-login">
+        <div class="logo-utp">
+          UTP
+        </div>
+
+        <h1>
+          Dashboard Gerencial
+        </h1>
+
+        <p>
+          Acceso exclusivo para administradores.
+        </p>
+      </header>
+
+      <div class="formulario-login">
+
+        <div class="grupo">
+          <label for="usuarioGerencial">
+            Usuario administrador
+          </label>
+
+          <select
+            id="usuarioGerencial"
+            class="campo"
+            disabled
+          >
+            <option value="">
+              Cargando administradores...
+            </option>
+          </select>
+        </div>
+
+        <div class="grupo">
+          <label for="claveGerencial">
+            Clave
+          </label>
+
+          <input
+            id="claveGerencial"
+            class="campo"
+            type="password"
+            placeholder="Ingresa tu clave"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button
+          id="botonIngresarGerencial"
+          class="boton boton-principal boton-login"
+          type="button"
+          disabled
+        >
+          INGRESAR
+        </button>
+
+        <div
+          id="mensajeLoginGerencial"
+          class="mensaje mensaje-error"
+        ></div>
+
+      </div>
+    </section>
+  </main>
+
+
+  <!-- =====================================================
+       PÁGINA GERENCIAL
+  ====================================================== -->
+
+  <main
+    id="paginaSistemaGerencial"
+    class="dg-pagina oculto"
+  >
+
+    <header class="dg-cabecera-sistema">
+
+      <div class="dg-marca-sistema">
+        <div class="dg-logo">
+          UTP
+        </div>
+
+        <div>
+          <strong>
+            Dashboard Gerencial
+          </strong>
+
+          <span>
+            Gestión de Tickets
+          </span>
+        </div>
+      </div>
+
+      <div class="dg-usuario-sistema">
+
+        <div class="dg-datos-usuario">
+          <strong id="nombreSesionGerencial">
+            Administrador
+          </strong>
+
+          <span id="rolSesionGerencial">
+            ADMIN
+          </span>
+        </div>
+
+        <button
+          id="botonSalirGerencial"
+          class="dg-boton-salir"
+          type="button"
+        >
+          Salir
+        </button>
+
+      </div>
+    </header>
+
+
+    <div class="dg-contenido-principal">
+
+      <div
+        id="avisoClaveGerencial"
+        class="dg-aviso-acceso"
+      >
+        Tu cuenta solicita un cambio de clave. Realiza el cambio
+        desde el enlace principal del sistema.
+      </div>
+
+      <?!= incluir('DashboardGerencialVista'); ?>
+
+    </div>
+  </main>
+
+
+  <!-- =====================================================
+       ESTADO COMPARTIDO CON EL DASHBOARD
+  ====================================================== -->
+
+  <script>
+    var estado = {
+      token: '',
+      sesion: null
+    };
+
+    window.estado = estado;
+  </script>
+
+
+  <!-- FUNCIONES EXCLUSIVAS DEL DASHBOARD GERENCIAL -->
+
+  <?!= incluir('DashboardGerencialUI'); ?>
+
+
+  <!-- =====================================================
+       INICIO DE SESIÓN Y CIERRE
+  ====================================================== -->
+
+  <script>
+    (() => {
+      'use strict';
+
+      function elemento(id) {
+        return document.getElementById(id);
+      }
+
+
+      function mostrarMensaje(
+        mensaje,
+        esError = true
+      ) {
+        const contenedor =
+          elemento(
+            'mensajeLoginGerencial'
+          );
+
+        if (!contenedor) {
+          return;
+        }
+
+        contenedor.textContent =
+          mensaje || '';
+
+        contenedor.classList.toggle(
+          'mensaje-error',
+          Boolean(esError)
+        );
+
+        contenedor.classList.toggle(
+          'mensaje-ok',
+          !esError
+        );
+      }
+
+
+      function bloquearIngreso(
+        bloqueado
+      ) {
+        const boton =
+          elemento(
+            'botonIngresarGerencial'
+          );
+
+        const selector =
+          elemento(
+            'usuarioGerencial'
+          );
+
+        if (boton) {
+          boton.disabled =
+            Boolean(bloqueado);
+
+          boton.textContent =
+            bloqueado
+              ? 'PROCESANDO...'
+              : 'INGRESAR';
+        }
+
+        if (selector) {
+          selector.disabled =
+            Boolean(bloqueado);
+        }
+      }
+
+
+      function cargarAdministradores() {
+        const selector =
+          elemento(
+            'usuarioGerencial'
+          );
+
+        const boton =
+          elemento(
+            'botonIngresarGerencial'
+          );
+
+        if (!selector || !boton) {
+          return;
+        }
+
+        selector.disabled = true;
+        boton.disabled = true;
+
+        google.script.run
+          .withSuccessHandler(
+            usuarios => {
+              const administradores =
+                (
+                  Array.isArray(usuarios)
+                    ? usuarios
+                    : []
+                ).filter(
+                  usuario =>
+                    String(
+                      usuario.rol || ''
+                    )
+                      .trim()
+                      .toUpperCase() ===
+                    'ADMIN'
+                );
+
+              selector.innerHTML = `
+                <option value="">
+                  Selecciona un administrador
+                </option>
+              `;
+
+              administradores.forEach(
+                administrador => {
+                  const opcion =
+                    document.createElement(
+                      'option'
+                    );
+
+                  opcion.value =
+                    administrador.usuario;
+
+                  opcion.textContent =
+                    administrador.nombre
+                      ? `${administrador.nombre} · Administrador`
+                      : administrador.usuario;
+
+                  selector.appendChild(
+                    opcion
+                  );
+                }
+              );
+
+              if (
+                !administradores.length
+              ) {
+                selector.innerHTML = `
+                  <option value="">
+                    No existen administradores activos
+                  </option>
+                `;
+
+                mostrarMensaje(
+                  'No se encontró ningún administrador activo.'
+                );
+
+                return;
+              }
+
+              selector.disabled = false;
+              boton.disabled = false;
+
+              mostrarMensaje(
+                '',
+                false
+              );
+            }
+          )
+          .withFailureHandler(
+            error => {
+              selector.innerHTML = `
+                <option value="">
+                  Error al cargar administradores
+                </option>
+              `;
+
+              mostrarMensaje(
+                error?.message ||
+                'No se pudieron cargar los administradores.'
+              );
+            }
+          )
+          .obtenerUsuariosActivos();
+      }
+
+
+      function mostrarDashboard(
+        sesion
+      ) {
+        elemento(
+          'paginaLoginGerencial'
+        )?.classList.add(
+          'oculto'
+        );
+
+        elemento(
+          'paginaSistemaGerencial'
+        )?.classList.remove(
+          'oculto'
+        );
+
+        elemento(
+          'vistaDashboardGerencial'
+        )?.classList.remove(
+          'oculto'
+        );
+
+        const nombre =
+          elemento(
+            'nombreSesionGerencial'
+          );
+
+        const rol =
+          elemento(
+            'rolSesionGerencial'
+          );
+
+        if (nombre) {
+          nombre.textContent =
+            sesion.nombre ||
+            sesion.usuario ||
+            'Administrador';
+        }
+
+        if (rol) {
+          rol.textContent =
+            'ADMIN';
+        }
+
+        elemento(
+          'avisoClaveGerencial'
+        )?.classList.toggle(
+          'activo',
+          Boolean(
+            sesion.debeCambiarClave
+          )
+        );
+
+        if (
+          typeof window
+            .inicializarDashboardGerencial ===
+          'function'
+        ) {
+          window
+            .inicializarDashboardGerencial();
+        }
+
+        if (
+          typeof window
+            .cargarDashboardGerencial ===
+          'function'
+        ) {
+          window
+            .cargarDashboardGerencial(
+              false
+            );
+        }
+      }
+
+
+      function ingresarGerencial() {
+        const usuario =
+          elemento(
+            'usuarioGerencial'
+          )?.value || '';
+
+        const clave =
+          elemento(
+            'claveGerencial'
+          )?.value || '';
+
+        if (!usuario) {
+          mostrarMensaje(
+            'Selecciona un administrador.'
+          );
+
+          return;
+        }
+
+        bloquearIngreso(true);
+        mostrarMensaje('', false);
+
+        google.script.run
+          .withSuccessHandler(
+            resultado => {
+              bloquearIngreso(false);
+
+              if (
+                !resultado ||
+                !resultado.ok
+              ) {
+                mostrarMensaje(
+                  resultado?.message ||
+                  'No se pudo iniciar sesión.'
+                );
+
+                return;
+              }
+
+              if (
+                String(
+                  resultado.rol || ''
+                )
+                  .trim()
+                  .toUpperCase() !==
+                'ADMIN'
+              ) {
+                if (resultado.token) {
+                  google.script.run
+                    .cerrarSesion(
+                      resultado.token
+                    );
+                }
+
+                mostrarMensaje(
+                  'Acceso exclusivo para administradores.'
+                );
+
+                return;
+              }
+
+              estado.token =
+                resultado.token;
+
+              estado.sesion =
+                resultado;
+
+              window.estado =
+                estado;
+
+              sessionStorage.setItem(
+                'ticketTokenGerencial',
+                resultado.token
+              );
+
+              mostrarDashboard(
+                resultado
+              );
+            }
+          )
+          .withFailureHandler(
+            error => {
+              bloquearIngreso(false);
+
+              mostrarMensaje(
+                error?.message ||
+                'Ocurrió un error al iniciar sesión.'
+              );
+            }
+          )
+          .iniciarSesion({
+            usuario:
+              usuario,
+
+            clave:
+              clave
+          });
+      }
+
+
+      function salirGerencial() {
+        const token =
+          estado.token;
+
+        estado.token = '';
+        estado.sesion = null;
+
+        sessionStorage.removeItem(
+          'ticketTokenGerencial'
+        );
+
+        if (
+          typeof window
+            .limpiarDashboardGerencial ===
+          'function'
+        ) {
+          window
+            .limpiarDashboardGerencial();
+        }
+
+        elemento(
+          'vistaDashboardGerencial'
+        )?.classList.add(
+          'oculto'
+        );
+
+        elemento(
+          'paginaSistemaGerencial'
+        )?.classList.add(
+          'oculto'
+        );
+
+        elemento(
+          'paginaLoginGerencial'
+        )?.classList.remove(
+          'oculto'
+        );
+
+        const clave =
+          elemento(
+            'claveGerencial'
+          );
+
+        if (clave) {
+          clave.value = '';
+        }
+
+        mostrarMensaje('', false);
+
+        if (token) {
+          google.script.run
+            .cerrarSesion(token);
+        }
+      }
+
+
+      function inicializarPaginaGerencial() {
+        elemento(
+          'botonIngresarGerencial'
+        )?.addEventListener(
+          'click',
+          ingresarGerencial
+        );
+
+        elemento(
+          'botonSalirGerencial'
+        )?.addEventListener(
+          'click',
+          salirGerencial
+        );
+
+        elemento(
+          'claveGerencial'
+        )?.addEventListener(
+          'keydown',
+          evento => {
+            if (
+              evento.key ===
+              'Enter'
+            ) {
+              ingresarGerencial();
+            }
+          }
+        );
+
+        cargarAdministradores();
+      }
+
+
+      if (
+        document.readyState ===
+        'loading'
+      ) {
+        document.addEventListener(
+          'DOMContentLoaded',
+          inicializarPaginaGerencial
+        );
+
+      } else {
+        inicializarPaginaGerencial();
+      }
+    })();
+  </script>
+
+</body>
+</html>
