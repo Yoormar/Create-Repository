@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestión de Tickets UTP</title>
+  <?!= incluir('Estilos'); ?>
+
+  <style>
+    .auto-v11-box {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 145px;
+      min-height: 44px;
+      padding: 5px 9px;
+      border: 1px solid #bbf7d0;
+      border-radius: 9px;
+      background: #f0fdf4;
+      box-sizing: border-box;
+    }
+
+    .auto-v11-titulo {
+      color: #166534;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .04em;
+    }
+
+    #contadorAutoV11 {
+      color: #111827;
+      font-size: 15px;
+      line-height: 1.1;
+      font-weight: 900;
+    }
+
+    #pendientesAutoV11 {
+      color: #667085;
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    #botonAsignarAhoraV11 {
+      border-color: #111827;
+      background: #111827;
+      color: #fff;
+    }
+
+    #botonAsignarAhoraV11:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+
+    .toast-asignacion-v11 {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 99999;
+      padding: 13px 16px;
+      border-radius: 12px;
+      background: #111827;
+      color: #fff;
+      box-shadow: 0 14px 30px rgba(15,23,42,.25);
+      font-size: 13px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+
+<body>
+  <main id="paginaLogin" class="pagina-login">
+    <section class="tarjeta-login">
+      <header class="cabecera-login">
+        <div class="logo-utp">UTP</div>
+        <h1>Gestión de Tickets</h1>
+        <p>Selecciona tu usuario e ingresa tu clave.</p>
+      </header>
+
+      <div class="formulario-login">
+        <div class="grupo">
+          <label for="usuario">Usuario</label>
+          <select id="usuario" class="campo">
+            <option value="">Cargando usuarios...</option>
+          </select>
+        </div>
+
+        <div class="grupo">
+          <label for="clave">Clave</label>
+          <input id="clave" class="campo" type="password" placeholder="Ingresa tu clave" autocomplete="current-password">
+        </div>
+
+        <button id="botonIngresar" class="boton boton-principal boton-login" type="button">INGRESAR</button>
+        <div id="mensajeLogin" class="mensaje mensaje-error"></div>
+      </div>
+    </section>
+  </main>
+
+  <main id="paginaSistema" class="oculto">
+    <div id="barraAlertasDatosUsuario" class="barra-alertas-usuario oculto"></div>
+
+    <header class="barra-superior">
+      <div class="marca-sistema">
+        <div class="logo-pequeno">UTP</div>
+        <strong>Gestión de Tickets</strong>
+      </div>
+
+      <div class="usuario-superior">
+        <div class="datos-usuario">
+          <strong id="nombreSesion">Usuario</strong>
+          <span id="rolSesion">Rol</span>
+        </div>
+        <button id="botonSalir" class="boton-salir" type="button">Salir</button>
+      </div>
+    </header>
+
+    <section class="contenido">
+      <div class="encabezado-pagina">
+        <div>
+          <h2 id="tituloBienvenida">Dashboard</h2>
+          <p id="subtituloDashboard">Resumen de tickets.</p>
+        </div>
+
+        <div class="acciones-superiores">
+          <button id="botonDashboardAdmin" class="boton boton-secundario boton-vista oculto" type="button">Dashboard</button>
+          <button id="botonBandeja" class="boton boton-secundario boton-vista" type="button">Bandeja</button>
+          <button id="botonUsuarios" class="boton boton-secundario oculto" type="button">Administrar usuarios</button>
+          <button id="botonCambiarClave" class="boton boton-secundario" type="button">Cambiar mi clave</button>
+          <button id="botonActualizar" class="boton boton-secundario" type="button">Actualizar</button>
+
+          <div id="autoAsignacionV11" class="auto-v11-box oculto">
+            <span class="auto-v11-titulo">AUTOMÁTICO</span>
+            <strong id="contadorAutoV11">00:59</strong>
+            <small id="pendientesAutoV11">Z 0 · D 0</small>
+          </div>
+
+          <button id="botonAsignarAhoraV11" class="boton boton-secundario oculto" type="button">Asignar ahora</button>
+        </div>
+      </div>
+
+      <?!= incluir('Dashboard'); ?>
+      <?!= incluir('Tickets'); ?>
+    </section>
+  </main>
+
+  <div id="modalClave" class="modal-fondo oculto">
+    <section class="modal modal-pequeno">
+      <header class="modal-header">
+        <h3>Cambiar clave</h3>
+        <button class="cerrar-modal" type="button" onclick="cerrarModalClave()" aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="grupo">
+          <label for="claveActual">Clave actual</label>
+          <input id="claveActual" class="campo" type="password" autocomplete="current-password">
+        </div>
+
+        <div class="grupo">
+          <label for="nuevaClave">Nueva clave</label>
+          <input id="nuevaClave" class="campo" type="password" autocomplete="new-password">
+        </div>
+
+        <div class="grupo">
+          <label for="confirmarClave">Confirmar nueva clave</label>
+          <input id="confirmarClave" class="campo" type="password" autocomplete="new-password">
+        </div>
+
+        <div id="mensajeClave" class="mensaje mensaje-error"></div>
+      </div>
+
+      <footer class="modal-footer">
+        <button class="boton boton-secundario" type="button" onclick="cerrarModalClave()">Cancelar</button>
+        <button id="guardarClave" class="boton boton-principal" type="button">Guardar clave</button>
+      </footer>
+    </section>
+  </div>
+
+  <?!= incluir('Usuarios'); ?>
+
+  <!-- Scripts existentes que sí se conservan -->
+  <?!= incluir('Scripts'); ?>
+  <?!= incluir('AjustesFinalesUI'); ?>
+  <?!= incluir('AjustesVistaUI'); ?>
+  <?!= incluir('AjusteCierreDashboardUI'); ?>
+  <?!= incluir('DashboardDynamicV8UI'); ?>
+
+  <!--
+    IMPORTANTE:
+    NO se incluyen aquí:
+    - AjusteCargaDashboardUI
+    - DashboardInicioRapidoV9UI
+    - AsignacionAutomaticaV10UI
+    porque esas tres capas estaban compitiendo por las mismas funciones.
+  -->
+
+  <script>
+  (function () {
+    'use strict';
+
+    const CICLO_MS = 60 * 1000;
+    const AVISO_MS = 15 * 1000;
+
+    let procesando = false;
+    let proximoCiclo = Date.now() + CICLO_MS;
+    let ultimoAvisoMs = Date.now();
+    let audioContexto = null;
+    let automaticoPreparado = false;
+
+    function v11(id) {
+      return document.getElementById(id);
+    }
+
+    function esAdminV11() {
+      return String(estado?.sesion?.rol || '').toUpperCase() === 'ADMIN';
+    }
+
+    function mostrarControlesAdminV11() {
+      const caja = v11('autoAsignacionV11');
+      const boton = v11('botonAsignarAhoraV11');
+
+      if (!caja || !boton) return;
+
+      caja.classList.toggle('oculto', !esAdminV11());
+      boton.classList.toggle('oculto', !esAdminV11());
+    }
+
+    function actualizarContadorV11() {
+      const contador = v11('contadorAutoV11');
+      if (!contador) return;
+
+      if (procesando) {
+        contador.textContent = 'ASIGNANDO';
+        return;
+      }
+
+      const segundos = Math.max(0, Math.ceil((proximoCiclo - Date.now()) / 1000));
+      const min = Math.floor(segundos / 60);
+      const seg = segundos % 60;
+      contador.textContent = String(min).padStart(2, '0') + ':' + String(seg).padStart(2, '0');
+    }
+
+    function consultarPendientesV11() {
+      if (!estado?.token || !esAdminV11()) return;
+
+      google.script.run
+        .withSuccessHandler(resultado => {
+          if (!resultado?.ok) return;
+
+          const texto = v11('pendientesAutoV11');
+          if (texto) {
+            texto.textContent = `Z ${Number(resultado.zendesk || 0)} · D ${Number(resultado.dynamic || 0)}`;
+          }
+        })
+        .withFailureHandler(() => {})
+        .obtenerPendientesDirectoV11(estado.token);
+    }
+
+    function refrescarDespuesV11() {
+      consultarPendientesV11();
+
+      if (typeof cargarTickets === 'function') {
+        cargarTickets();
+      }
+
+      if (
+        estado?.vistaActual === 'dashboard' &&
+        typeof cargarDashboardAdmin === 'function'
+      ) {
+        cargarDashboardAdmin();
+      }
+    }
+
+    function procesarV11(manual) {
+      if (procesando || !estado?.token || !esAdminV11()) {
+        return;
+      }
+
+      procesando = true;
+      actualizarContadorV11();
+
+      const boton = v11('botonAsignarAhoraV11');
+      if (boton) {
+        boton.disabled = true;
+        boton.textContent = 'Asignando...';
+      }
+
+      google.script.run
+        .withSuccessHandler(resultado => {
+          procesando = false;
+          proximoCiclo = Date.now() + CICLO_MS;
+
+          if (boton) {
+            boton.disabled = false;
+            boton.textContent = 'Asignar ahora';
+          }
+
+          actualizarContadorV11();
+          consultarPendientesV11();
+
+          if (manual && typeof mostrarMensaje === 'function') {
+            mostrarMensaje(
+              'mensajeDashboard',
+              resultado?.message || 'Proceso terminado',
+              resultado?.ok ? 'ok' : 'error'
+            );
+          }
+
+          if (resultado?.ok && Number(resultado.totalAsignados || 0) > 0) {
+            refrescarDespuesV11();
+          }
+        })
+        .withFailureHandler(error => {
+          procesando = false;
+          proximoCiclo = Date.now() + CICLO_MS;
+
+          if (boton) {
+            boton.disabled = false;
+            boton.textContent = 'Asignar ahora';
+          }
+
+          actualizarContadorV11();
+
+          if (typeof mostrarMensaje === 'function') {
+            mostrarMensaje(
+              'mensajeDashboard',
+              error?.message || 'Error al asignar'
+            );
+          }
+        })
+        .procesarPendientesDirectoV11(estado.token);
+    }
+
+    function asegurarAutomaticoServidorV11() {
+      if (!estado?.token || !esAdminV11() || automaticoPreparado) return;
+
+      automaticoPreparado = true;
+
+      google.script.run
+        .withSuccessHandler(() => {})
+        .withFailureHandler(() => {
+          automaticoPreparado = false;
+        })
+        .asegurarAsignacionDirectaV11(estado.token);
+    }
+
+    function sonarCampanaV11() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+
+        if (!audioContexto) {
+          audioContexto = new AudioCtx();
+        }
+
+        if (audioContexto.state === 'suspended') {
+          audioContexto.resume().catch(() => {});
+        }
+
+        const ahora = audioContexto.currentTime;
+        const gain = audioContexto.createGain();
+        gain.connect(audioContexto.destination);
+        gain.gain.setValueAtTime(0.0001, ahora);
+        gain.gain.exponentialRampToValueAtTime(0.18, ahora + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ahora + 0.9);
+
+        [880, 1174.66].forEach((frecuencia, indice) => {
+          const osc = audioContexto.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(frecuencia, ahora + indice * 0.08);
+          osc.connect(gain);
+          osc.start(ahora + indice * 0.08);
+          osc.stop(ahora + 0.9);
+        });
+      } catch (error) {}
+    }
+
+    function mostrarToastV11(notificacion) {
+      document.querySelector('.toast-asignacion-v11')?.remove();
+
+      const toast = document.createElement('div');
+      toast.className = 'toast-asignacion-v11';
+      toast.textContent = `Nuevo ticket asignado: ${notificacion.origen || ''} · ${notificacion.ticket || notificacion.numero || ''}`;
+      document.body.appendChild(toast);
+      window.setTimeout(() => toast.remove(), 6000);
+    }
+
+    function consultarAvisosV11() {
+      if (!estado?.token || esAdminV11()) return;
+
+      google.script.run
+        .withSuccessHandler(resultado => {
+          if (!resultado?.ok) return;
+
+          (resultado.notificaciones || []).forEach(notificacion => {
+            sonarCampanaV11();
+            mostrarToastV11(notificacion);
+          });
+
+          ultimoAvisoMs = Number(resultado.ahoraMs || Date.now());
+
+          if ((resultado.notificaciones || []).length && typeof cargarTickets === 'function') {
+            cargarTickets();
+          }
+        })
+        .withFailureHandler(() => {})
+        .obtenerNotificacionesAsignacionV11(
+          estado.token,
+          ultimoAvisoMs
+        );
+    }
+
+    function habilitarAudioV11() {
+      const activar = () => {
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx && !audioContexto) {
+            audioContexto = new AudioCtx();
+          }
+          if (audioContexto?.state === 'suspended') {
+            audioContexto.resume().catch(() => {});
+          }
+        } catch (error) {}
+      };
+
+      document.addEventListener('click', activar, { once: true, passive: true });
+    }
+
+    function vincularBotonesV11() {
+      const asignar = v11('botonAsignarAhoraV11');
+      if (asignar && asignar.dataset.v11 !== 'SI') {
+        asignar.dataset.v11 = 'SI';
+        asignar.addEventListener('click', () => procesarV11(true));
+      }
+
+      ['botonActualizar', 'botonActualizarDashboard'].forEach(id => {
+        const boton = v11(id);
+        if (!boton || boton.dataset.v11 === 'SI') return;
+
+        boton.dataset.v11 = 'SI';
+        boton.addEventListener(
+          'click',
+          () => {
+            if (estado?.vistaActual === 'dashboard' && esAdminV11()) {
+              procesarV11(false);
+            }
+          },
+          true
+        );
+      });
+    }
+
+    function cicloSesionV11() {
+      mostrarControlesAdminV11();
+      vincularBotonesV11();
+
+      if (esAdminV11()) {
+        asegurarAutomaticoServidorV11();
+        consultarPendientesV11();
+      }
+    }
+
+    habilitarAudioV11();
+    vincularBotonesV11();
+
+    window.setInterval(() => {
+      cicloSesionV11();
+    }, 1000);
+
+    window.setInterval(() => {
+      if (esAdminV11()) {
+        procesarV11(false);
+      }
+    }, CICLO_MS);
+
+    window.setInterval(actualizarContadorV11, 1000);
+    window.setInterval(consultarAvisosV11, AVISO_MS);
+  })();
+  </script>
+</body>
+</html>
