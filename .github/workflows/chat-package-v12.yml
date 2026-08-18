@@ -12,13 +12,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build ZIP
+      - name: Validate extension
         run: |
-          zip -r UTP_TICKETS_12_0_4_ENTERPRISE.zip UTP_TICKETS_v12_0_ENTERPRISE
+          test -f UTP_TICKETS_v12_0_ENTERPRISE/manifest.json
+          test -f UTP_TICKETS_v12_0_ENTERPRISE/background_entry.js
+          test -f UTP_TICKETS_v12_0_ENTERPRISE/background_v12.js
+          test -f UTP_TICKETS_v12_0_ENTERPRISE/ui_v12.js
 
-      - name: Upload ZIP
+      - name: Upload extension folder
         uses: actions/upload-artifact@v4
         with:
-          name: UTP_TICKETS_12_0_4_ENTERPRISE
-          path: UTP_TICKETS_12_0_4_ENTERPRISE.zip
+          name: UTP_TICKETS_12_0_5_ENTERPRISE_DIRECTO
+          path: UTP_TICKETS_v12_0_ENTERPRISE/
           if-no-files-found: error
