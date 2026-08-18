@@ -1,0 +1,1125 @@
+<style>
+/* =========================================================
+   CARGA COMPLETA DEL DASHBOARD
+========================================================= */
+
+#vistaDashboardAdmin.cargando-dashboard-real-ui {
+  position: relative;
+  min-height: 520px;
+}
+
+#vistaDashboardAdmin.cargando-dashboard-real-ui
+> :not(#cargadorDashboardRealUI) {
+  display: none !important;
+}
+
+#cargadorDashboardRealUI {
+  display: none;
+  width: 100%;
+  min-height: 460px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+#vistaDashboardAdmin.cargando-dashboard-real-ui
+> #cargadorDashboardRealUI {
+  display: flex !important;
+}
+
+.caja-cargador-dashboard-real-ui {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px 28px;
+  border: 1px solid #d8e1ee;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow:
+    0 10px 28px
+    rgba(15, 23, 42, 0.10);
+  color: #172033;
+}
+
+.spinner-dashboard-real-ui {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 4px solid #dbeafe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation:
+    girarDashboardRealUI
+    0.75s
+    linear
+    infinite;
+}
+
+.texto-cargador-dashboard-real-ui strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.texto-cargador-dashboard-real-ui span {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@keyframes girarDashboardRealUI {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* =========================================================
+   ACTUALIZACIÓN RÁPIDA
+========================================================= */
+
+#vistaDashboardAdmin.dashboard-rapido-actualizando::after {
+  content:
+    'Actualizando disponibilidad y asignación...';
+
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 9999;
+
+  padding: 11px 16px;
+
+  border-radius: 10px;
+  background: #111111;
+  color: #ffffff;
+
+  box-shadow:
+    0 12px 28px
+    rgba(15, 23, 42, 0.25);
+
+  font-size: 13px;
+  font-weight: 800;
+}
+</style>
+
+
+<script>
+(function () {
+  'use strict';
+
+  if (
+    window
+      .__DASHBOARD_OPERATIVO_RAPIDO_FINAL__
+  ) {
+    return;
+  }
+
+  window
+    .__DASHBOARD_OPERATIVO_RAPIDO_FINAL__ =
+    true;
+
+
+  /* =======================================================
+     CONFIGURACIÓN
+  ======================================================= */
+
+  const PREFIJO_CACHE =
+    'GESTION_TICKETS_DASHBOARD_FINAL';
+
+  const DURACION_CACHE =
+    3 * 60 * 1000;
+
+  let dashboardCompletoListo =
+    false;
+
+  let ultimaClaveCompleta =
+    '';
+
+  let numeroSolicitudCompleta =
+    0;
+
+  let numeroSolicitudRapida =
+    0;
+
+  let cargandoCompleto =
+    false;
+
+  let cargandoRapido =
+    false;
+
+
+  /* =======================================================
+     ELEMENTOS
+  ======================================================= */
+
+  function panelDashboardRapido() {
+    return document.getElementById(
+      'vistaDashboardAdmin'
+    );
+  }
+
+
+  function asegurarCargadorCompleto() {
+    const panel =
+      panelDashboardRapido();
+
+    if (!panel) {
+      return null;
+    }
+
+    panel.classList.remove(
+      'dashboard-esperando-ui'
+    );
+
+    let cargador =
+      document.getElementById(
+        'cargadorDashboardRealUI'
+      );
+
+    if (!cargador) {
+      cargador =
+        document.createElement(
+          'div'
+        );
+
+      cargador.id =
+        'cargadorDashboardRealUI';
+
+      cargador.innerHTML = `
+        <div class="caja-cargador-dashboard-real-ui">
+          <div class="spinner-dashboard-real-ui"></div>
+
+          <div class="texto-cargador-dashboard-real-ui">
+            <strong>
+              Preparando dashboard
+            </strong>
+
+            <span>
+              Cargando indicadores, disponibilidad,
+              calendario y reportes.
+            </span>
+          </div>
+        </div>
+      `;
+
+      panel.prepend(
+        cargador
+      );
+    }
+
+    return panel;
+  }
+
+
+  function mostrarCargaCompleta(
+    cargando
+  ) {
+    const panel =
+      asegurarCargadorCompleto();
+
+    if (!panel) {
+      return;
+    }
+
+    panel.classList.toggle(
+      'cargando-dashboard-real-ui',
+      Boolean(cargando)
+    );
+
+    panel.setAttribute(
+      'aria-busy',
+      cargando
+        ? 'true'
+        : 'false'
+    );
+  }
+
+
+  function mostrarCargaRapida(
+    cargando
+  ) {
+    const panel =
+      panelDashboardRapido();
+
+    panel?.classList.toggle(
+      'dashboard-rapido-actualizando',
+      Boolean(cargando)
+    );
+  }
+
+
+  /* =======================================================
+     FILTROS Y CACHÉ
+  ======================================================= */
+
+  function obtenerFiltrosRapidos() {
+    if (
+      typeof obtenerFiltrosDashboard ===
+      'function'
+    ) {
+      return obtenerFiltrosDashboard();
+    }
+
+    return {
+      mes: '',
+      anio: '',
+      plataforma: '',
+      asesor:
+        '__GLOBAL__'
+    };
+  }
+
+
+  function claveFiltrosRapidos() {
+    return JSON.stringify(
+      obtenerFiltrosRapidos()
+    );
+  }
+
+
+  function claveCacheRapida() {
+    const usuario =
+      String(
+        estado?.sesion?.usuario ||
+        estado?.sesion?.nombre ||
+        'ADMIN'
+      )
+        .trim()
+        .toUpperCase();
+
+    return (
+      PREFIJO_CACHE +
+      '|' +
+      encodeURIComponent(usuario) +
+      '|' +
+      encodeURIComponent(
+        claveFiltrosRapidos()
+      )
+    );
+  }
+
+
+  function leerCacheRapida(
+    clave
+  ) {
+    try {
+      const contenido =
+        sessionStorage.getItem(
+          clave
+        );
+
+      if (!contenido) {
+        return null;
+      }
+
+      const registro =
+        JSON.parse(
+          contenido
+        );
+
+      if (
+        !registro ||
+        !registro.fecha ||
+        !registro.datos ||
+        !registro.datos.ok
+      ) {
+        sessionStorage.removeItem(
+          clave
+        );
+
+        return null;
+      }
+
+      if (
+        Date.now() -
+          Number(registro.fecha) >
+        DURACION_CACHE
+      ) {
+        sessionStorage.removeItem(
+          clave
+        );
+
+        return null;
+      }
+
+      return registro.datos;
+
+    } catch (error) {
+      return null;
+    }
+  }
+
+
+  function guardarCacheRapida(
+    clave,
+    datos
+  ) {
+    try {
+      sessionStorage.setItem(
+        clave,
+        JSON.stringify({
+          fecha:
+            Date.now(),
+
+          datos
+        })
+      );
+
+    } catch (error) {
+      /*
+       * El dashboard funciona aunque
+       * el navegador bloquee el caché.
+       */
+    }
+  }
+
+
+  /* =======================================================
+     ALERTAS CORRECTAS
+  ======================================================= */
+
+  function normalizarDashboardRapido(
+    valor
+  ) {
+    if (
+      typeof normalizarCliente ===
+      'function'
+    ) {
+      return normalizarCliente(
+        valor
+      );
+    }
+
+    return String(
+      valor || ''
+    )
+      .normalize('NFD')
+      .replace(
+        /[\u0300-\u036f]/g,
+        ''
+      )
+      .trim()
+      .toUpperCase();
+  }
+
+
+  function esAlertaAsignacionReal(
+    item
+  ) {
+    if (
+      !item ||
+      !item.activo ||
+      !item.habilitado
+    ) {
+      return false;
+    }
+
+    const revisiones =
+      Number(
+        item.revision || 0
+      );
+
+    const complementarios =
+      (
+        item.ticketsAfectados ||
+        []
+      )
+        .filter(
+          ticket =>
+            normalizarDashboardRapido(
+              ticket.fuente
+            ) ===
+              'SEGUIMIENTO' &&
+            [
+              'ATENDIDO',
+              'SEGUIMIENTO'
+            ].includes(
+              normalizarDashboardRapido(
+                ticket.detalle
+              )
+            )
+        )
+        .length;
+
+    return (
+      revisiones >= 2 ||
+      (
+        revisiones >= 1 &&
+        complementarios >= 1
+      )
+    );
+  }
+
+
+  function crearAlertasDesdeDisponibilidad(
+    disponibilidad
+  ) {
+    return (
+      disponibilidad ||
+      []
+    )
+      .filter(
+        esAlertaAsignacionReal
+      )
+      .map(
+        item => {
+          const revisiones =
+            Number(
+              item.revision || 0
+            );
+
+          return {
+            asesor:
+              item.asesor,
+
+            motivo:
+              revisiones >= 2
+                ? `${revisiones} tickets En revisión simultáneos`
+                : 'En revisión combinado con Atendido o Seguimiento',
+
+            ticketsAfectados:
+              (
+                item.ticketsAfectados ||
+                []
+              )
+                .map(
+                  ticket => ({
+                    numero:
+                      ticket.numero || '',
+
+                    ticket:
+                      ticket.ticket || '',
+
+                    alumno:
+                      ticket.alumno || '',
+
+                    detalle:
+                      ticket.detalle || '',
+
+                    plataforma:
+                      ticket.plataforma ||
+                      ticket.fuente ||
+                      '',
+
+                    tipoTicket:
+                      ticket.tipoTicket ||
+                      ''
+                  })
+                )
+          };
+        }
+      );
+  }
+
+
+  function corregirAlertasDashboardCompleto(
+    datos
+  ) {
+    if (
+      !datos ||
+      !datos.ok
+    ) {
+      return datos;
+    }
+
+    datos.alertasAsignacion =
+      crearAlertasDesdeDisponibilidad(
+        datos
+          .disponibilidadAsesores ||
+        []
+      );
+
+    return datos;
+  }
+
+
+  /* =======================================================
+     PINTADO COMPLETO
+  ======================================================= */
+
+  function pintarDashboardCompletoFinal(
+    datos,
+    clave
+  ) {
+    if (
+      !datos ||
+      !datos.ok
+    ) {
+      return;
+    }
+
+    corregirAlertasDashboardCompleto(
+      datos
+    );
+
+    estado.dashboard =
+      datos;
+
+    if (
+      typeof pintarDashboard ===
+      'function'
+    ) {
+      pintarDashboard(
+        datos
+      );
+    }
+
+    window.requestAnimationFrame(
+      () => {
+        window.requestAnimationFrame(
+          () => {
+            window.setTimeout(
+              () => {
+                dashboardCompletoListo =
+                  true;
+
+                ultimaClaveCompleta =
+                  clave;
+
+                cargandoCompleto =
+                  false;
+
+                mostrarCargaCompleta(
+                  false
+                );
+              },
+              120
+            );
+          }
+        );
+      }
+    );
+  }
+
+
+  /* =======================================================
+     CARGA COMPLETA
+  ======================================================= */
+
+  function cargarDashboardCompletoFinal() {
+    if (
+      estado.sesion?.rol !==
+      'ADMIN' ||
+      cargandoCompleto
+    ) {
+      return;
+    }
+
+    cargandoCompleto =
+      true;
+
+    const claveFiltros =
+      claveFiltrosRapidos();
+
+    const claveCache =
+      claveCacheRapida();
+
+    const cargaInicial =
+      !dashboardCompletoListo &&
+      !estado.dashboard;
+
+    let cacheMostrado =
+      false;
+
+    if (cargaInicial) {
+      mostrarCargaCompleta(
+        true
+      );
+
+      const cache =
+        leerCacheRapida(
+          claveCache
+        );
+
+      if (cache) {
+        cacheMostrado =
+          true;
+
+        pintarDashboardCompletoFinal(
+          cache,
+          claveFiltros
+        );
+      }
+    }
+
+    mostrarMensaje(
+      'mensajeDashboard',
+
+      cargaInicial &&
+      !cacheMostrado
+        ? 'Cargando dashboard...'
+        : 'Actualizando dashboard completo...',
+
+      'ok'
+    );
+
+    const solicitud =
+      ++numeroSolicitudCompleta;
+
+    google.script.run
+      .withSuccessHandler(
+        resultado => {
+          if (
+            solicitud !==
+            numeroSolicitudCompleta
+          ) {
+            return;
+          }
+
+          if (
+            !resultado ||
+            !resultado.ok
+          ) {
+            cargandoCompleto =
+              false;
+
+            if (!cacheMostrado) {
+              mostrarCargaCompleta(
+                false
+              );
+            }
+
+            mostrarMensaje(
+              'mensajeDashboard',
+              resultado?.message ||
+              'No se pudo cargar el dashboard'
+            );
+
+            return;
+          }
+
+          guardarCacheRapida(
+            claveCache,
+            resultado
+          );
+
+          pintarDashboardCompletoFinal(
+            resultado,
+            claveFiltros
+          );
+
+          mostrarMensaje(
+            'mensajeDashboard',
+            '',
+            'ok'
+          );
+        }
+      )
+      .withFailureHandler(
+        error => {
+          if (
+            solicitud !==
+            numeroSolicitudCompleta
+          ) {
+            return;
+          }
+
+          cargandoCompleto =
+            false;
+
+          if (!cacheMostrado) {
+            mostrarCargaCompleta(
+              false
+            );
+          }
+
+          mostrarMensaje(
+            'mensajeDashboard',
+            error?.message ||
+            'Error al cargar el dashboard'
+          );
+        }
+      )
+      .obtenerDashboardAdmin(
+        estado.token,
+        obtenerFiltrosRapidos()
+      );
+  }
+
+
+  /* =======================================================
+     PINTADO RÁPIDO
+  ======================================================= */
+
+  function pintarDashboardOperativoRapido(
+    resultado
+  ) {
+    const disponibilidad =
+      resultado.disponibilidad ||
+      [];
+
+    const pendientes =
+      resultado
+        .pendientesAsignacionZendesk ||
+      [];
+
+    const alertasAsignacion =
+      Array.isArray(
+        resultado.alertasAsignacion
+      )
+        ? resultado.alertasAsignacion
+        : crearAlertasDesdeDisponibilidad(
+            disponibilidad
+          );
+
+    if (
+      typeof pintarDisponibilidadAsesores ===
+      'function'
+    ) {
+      pintarDisponibilidadAsesores(
+        disponibilidad
+      );
+    }
+
+    const disponibles =
+      Number(
+        resultado.disponibles || 0
+      );
+
+    if (
+      typeof setText ===
+      'function'
+    ) {
+      setText(
+        'dashCantidadDisponibles',
+        `${disponibles} disponible${
+          disponibles === 1
+            ? ''
+            : 's'
+        }`
+      );
+    }
+
+    if (
+      typeof pintarAlertasAsignacion ===
+      'function'
+    ) {
+      pintarAlertasAsignacion(
+        alertasAsignacion
+      );
+    }
+
+    if (
+      typeof pintarSiguienteAsesor ===
+      'function'
+    ) {
+      pintarSiguienteAsesor(
+        resultado.siguienteAsesor ||
+        null,
+
+        pendientes,
+
+        disponibilidad
+      );
+    }
+
+    if (
+      resultado.alertasPortal &&
+      typeof pintarAlertasPortalDashboard ===
+        'function'
+    ) {
+      pintarAlertasPortalDashboard(
+        resultado.alertasPortal,
+        disponibilidad
+      );
+
+      if (
+        typeof setText ===
+        'function'
+      ) {
+        setText(
+          'dashAlertasPortal',
+          Number(
+            resultado
+              .alertasPortal
+              .total || 0
+          )
+        );
+      }
+    }
+
+    estado
+      .pendientesAsignacionZendesk =
+      pendientes;
+
+    if (estado.dashboard) {
+      estado.dashboard
+        .disponibilidadAsesores =
+        disponibilidad;
+
+      estado.dashboard
+        .siguienteAsesor =
+        resultado.siguienteAsesor ||
+        null;
+
+      estado.dashboard
+        .pendientesAsignacionZendesk =
+        pendientes;
+
+      estado.dashboard
+        .alertasAsignacion =
+        alertasAsignacion;
+
+      if (
+        resultado.alertasPortal
+      ) {
+        estado.dashboard
+          .alertasPortal =
+          resultado.alertasPortal;
+
+        estado.dashboard
+          .responsablesPortal =
+          disponibilidad;
+      }
+
+      if (
+        estado.dashboard
+          .resumenGeneral
+      ) {
+        estado.dashboard
+          .resumenGeneral
+          .asesoresDisponibles =
+          disponibles;
+
+        if (
+          resultado.alertasPortal
+        ) {
+          estado.dashboard
+            .resumenGeneral
+            .alertasPortal =
+            Number(
+              resultado
+                .alertasPortal
+                .total || 0
+            );
+        }
+      }
+
+      guardarCacheRapida(
+        claveCacheRapida(),
+        estado.dashboard
+      );
+    }
+  }
+
+
+  /* =======================================================
+     ACTUALIZACIÓN RÁPIDA
+  ======================================================= */
+
+  function cargarDashboardOperativoRapido() {
+    if (
+      estado.sesion?.rol !==
+      'ADMIN'
+    ) {
+      return;
+    }
+
+    if (
+      !dashboardCompletoListo ||
+      !estado.dashboard
+    ) {
+      cargarDashboardCompletoFinal();
+      return;
+    }
+
+    if (
+      cargandoCompleto ||
+      cargandoRapido
+    ) {
+      return;
+    }
+
+    cargandoRapido =
+      true;
+
+    mostrarCargaRapida(
+      true
+    );
+
+    const solicitud =
+      ++numeroSolicitudRapida;
+
+    google.script.run
+      .withSuccessHandler(
+        resultado => {
+          if (
+            solicitud !==
+            numeroSolicitudRapida
+          ) {
+            return;
+          }
+
+          cargandoRapido =
+            false;
+
+          mostrarCargaRapida(
+            false
+          );
+
+          if (
+            !resultado ||
+            !resultado.ok
+          ) {
+            mostrarMensaje(
+              'mensajeDashboard',
+              resultado?.message ||
+              'No se pudo actualizar la asignación'
+            );
+
+            return;
+          }
+
+          pintarDashboardOperativoRapido(
+            resultado
+          );
+
+          mostrarMensaje(
+            'mensajeDashboard',
+            '',
+            'ok'
+          );
+        }
+      )
+      .withFailureHandler(
+        error => {
+          if (
+            solicitud !==
+            numeroSolicitudRapida
+          ) {
+            return;
+          }
+
+          cargandoRapido =
+            false;
+
+          mostrarCargaRapida(
+            false
+          );
+
+          mostrarMensaje(
+            'mensajeDashboard',
+            error?.message ||
+            'Error al actualizar la asignación'
+          );
+        }
+      )
+      .obtenerDashboardOperativoRapido(
+        estado.token
+      );
+  }
+
+
+  /* =======================================================
+     FUNCIÓN CENTRAL
+  ======================================================= */
+
+  window.cargarDashboardCompleto =
+    cargarDashboardCompletoFinal;
+
+  window.cargarDashboardOperativoRapido =
+    cargarDashboardOperativoRapido;
+
+  /*
+   * Todas las funciones existentes que llaman
+   * cargarDashboardAdmin() pasarán por aquí.
+   *
+   * Si cambió un filtro, carga todo.
+   * Si los filtros siguen iguales, solo actualiza
+   * disponibilidad y asignación.
+   */
+  window.cargarDashboardAdmin =
+    function (
+      forzarCompleto
+    ) {
+      const claveActual =
+        claveFiltrosRapidos();
+
+      const necesitaCompleto =
+        forzarCompleto === true ||
+        !dashboardCompletoListo ||
+        !estado.dashboard ||
+        claveActual !==
+          ultimaClaveCompleta;
+
+      if (necesitaCompleto) {
+        cargarDashboardCompletoFinal();
+
+      } else {
+        cargarDashboardOperativoRapido();
+      }
+    };
+
+    /* =======================================================
+     BOTÓN JUNTO A LOS FILTROS
+  ======================================================= */
+
+  function vincularBotonCompleto() {
+    const boton =
+      document.getElementById(
+        'botonActualizarDashboard'
+      );
+
+    if (
+      !boton ||
+      boton.dataset
+        .dashboardCompletoFinal ===
+        'SI'
+    ) {
+      return;
+    }
+
+    boton.dataset
+      .dashboardCompletoFinal =
+      'SI';
+
+    /*
+     * Si no cambiaron los filtros:
+     * actualiza únicamente disponibilidad,
+     * alertas y asignación.
+     *
+     * Si cambiaron los filtros:
+     * actualiza todo el dashboard.
+     */
+    boton.addEventListener(
+      'click',
+      evento => {
+        evento.preventDefault();
+        evento.stopImmediatePropagation();
+
+        window.cargarDashboardAdmin();
+      },
+      true
+    );
+  }
+
+
+  /* =======================================================
+     INICIO
+  ======================================================= */
+
+  function iniciarDashboardFinal() {
+    asegurarCargadorCompleto();
+    vincularBotonCompleto();
+  }
+
+  if (
+    document.readyState ===
+    'loading'
+  ) {
+    document.addEventListener(
+      'DOMContentLoaded',
+      iniciarDashboardFinal
+    );
+
+  } else {
+    iniciarDashboardFinal();
+  }
+})();
+</script>
