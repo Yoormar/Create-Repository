@@ -1,0 +1,44 @@
+UTP TICKETS v12.0 ENTERPRISE
+
+PLATAFORMAS
+- ZENDESK
+- DYNAMIC (Microsoft Dynamics 365)
+
+REGLAS DE ORIGEN
+1. DYNAMIC siempre se guarda como DYNAMIC.
+2. En Zendesk, si el DNI NO tiene antecedentes, el origen puede ser PORTAL o ZENDESK según la detección del ticket.
+3. En Zendesk, si el DNI YA tiene antecedentes en BASE_TICKETS, el nuevo ticket se guarda como ZENDESK. PORTAL no se reutiliza para el reingreso.
+
+TIPO DE TICKET
+- NUEVO: DNI sin antecedentes.
+- REEVALUADO: mismo DNI con un Ticket ID diferente o antecedente atendido con cierre.
+- REASIGNADO: reingresos habilitados por Seguimiento, Pendiente, Derivado, Cerrado u otro detalle compatible.
+
+DYNAMIC
+- Lee la grilla Mis casos activos.
+- Extrae ID Ticket con formato CAS-... - U...
+- Extrae el nombre del alumno desde el titulo.
+- Consulta BASE_TICKETS antes de abrir el caso.
+- Si necesita DNI, abre el caso, lee Nro. documento y vuelve a la grilla.
+- ORIGEN siempre es DYNAMIC.
+
+INSTALACION CHROME
+1. Descarga y descomprime la carpeta UTP_TICKETS_v12_0_ENTERPRISE.
+2. Abre chrome://extensions/.
+3. Activa Modo de desarrollador.
+4. Pulsa Cargar descomprimida.
+5. Selecciona la carpeta UTP_TICKETS_v12_0_ENTERPRISE.
+
+INSTALACION EDGE
+1. Abre edge://extensions/.
+2. Activa Modo de desarrollador.
+3. Pulsa Cargar descomprimido.
+4. Selecciona la misma carpeta UTP_TICKETS_v12_0_ENTERPRISE.
+
+RECOMENDACION OPERATIVA
+1. Procesar primero Zendesk.
+2. Después procesar DYNAMIC.
+3. Ambas plataformas usan la misma BASE_TICKETS y la misma historia por DNI.
+
+VERSION BASE
+Construida a partir de la lógica funcional de UTP Tickets 11.14 Enterprise.
