@@ -1,6 +1,6 @@
 /* =========================================================
    SISTEMA OPERATIVO V12
-   - Prioridad diaria corregida con TIEMPO INICIO / FECHA FIN
+   - Prioridad diaria por TIEMPO INICIO del dia actual
    - Asignacion automatica ZENDESK + DYNAMIC
    - PORTAL conserva su flujo actual
    - Datos operativos para dashboard principal
@@ -32,19 +32,28 @@ function v12ClaveTicket_(ticket) {
 /* =========================================================
    PRIORIDAD DEL DIA
 
-   La version anterior revisaba FECHA INICIO.
-   Sin embargo, las asignaciones escriben TIEMPO INICIO.
-   V12 usa primero TIEMPO INICIO y conserva FECHA INICIO
-   solamente como respaldo para registros antiguos.
+   REGLA V12.2:
 
-   Un ticket se cuenta una sola vez en el dia:
-   - asignado/iniciado hoy => TIEMPO INICIO
-   - atendido/cerrado hoy => FECHA FIN / TIEMPO FIN
+   La prioridad de reparto NO usa:
+   - total de tickets activos;
+   - acumulado historico;
+   - FECHA INICIO;
+   - tickets cerrados hoy que fueron asignados otro dia.
+
+   La prioridad utiliza unicamente la cantidad de tickets
+   que fueron asignados al asesor HOY. La fecha real de la
+   asignacion es TIEMPO INICIO, porque esa es la columna que
+   el sistema escribe cuando entrega un ticket al asesor.
+
+   Ejemplo:
+   - Pamela recibio 2 tickets hoy => prioridad 2.
+   - Marjhorye recibio 0 hoy => prioridad 0.
+   - Aunque Marjhorye tenga 35 tickets historicos/activos,
+     esos tickets no aumentan la prioridad de hoy.
 ========================================================= */
 function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
   const hoy = claveFecha(new Date());
-  const ticketsHoy = new Set();
-  const iniciadosHoy = new Set();
+  const asignadosHoy = new Set();
   const atendidosHoy = new Set();
 
   (ticketsBase || []).forEach(ticket => {
@@ -58,17 +67,22 @@ function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
     const clave = v12ClaveTicket_(ticket);
     if (!clave) return;
 
-    const inicio =
+    /*
+     * UNICA FUENTE PARA LA PRIORIDAD:
+     * TIEMPO INICIO.
+     */
+    const tiempoInicio =
       ticket.tiempoInicioRaw ||
-      ticket.tiempoInicio ||
-      ticket.fechaInicioRaw ||
-      ticket.fechaInicio;
+      ticket.tiempoInicio;
 
-    if (claveFecha(inicio) === hoy) {
-      iniciadosHoy.add(clave);
-      ticketsHoy.add(clave);
+    if (claveFecha(tiempoInicio) === hoy) {
+      asignadosHoy.add(clave);
     }
 
+    /*
+     * ATENDIDOS HOY se conserva solo como dato informativo.
+     * NO suma a la prioridad si el ticket no fue asignado hoy.
+     */
     const detalle = normalizar(ticket.detalle);
     const estado = normalizar(ticket.estado);
 
@@ -85,16 +99,16 @@ function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
 
       if (claveFecha(fin) === hoy) {
         atendidosHoy.add(clave);
-        ticketsHoy.add(clave);
       }
     }
   });
 
   return {
-    recibidosHoy: iniciadosHoy.size,
+    recibidosHoy: asignadosHoy.size,
+    asignadosHoy: asignadosHoy.size,
     atendidosHoy: atendidosHoy.size,
-    totalHoy: ticketsHoy.size,
-    prioridad: ticketsHoy.size
+    totalHoy: asignadosHoy.size,
+    prioridad: asignadosHoy.size
   };
 }
 
@@ -104,8 +118,8 @@ function calcularEstadoOperativoAsesorV12_(
   seguimiento
 ) {
   /*
-   * Conserva exactamente las reglas de disponibilidad que
-   * ya usa el sistema y corrige solo la carga/prioridad diaria.
+   * Conserva las reglas actuales de disponibilidad y
+   * reemplaza solamente la carga/prioridad por la del dia.
    */
   const estadoBase = calcularEstadoOperativoAsesor(
     usuario,
@@ -118,15 +132,19 @@ function calcularEstadoOperativoAsesorV12_(
     ticketsBase
   );
 
-  estadoBase.totalAtencionesHoy = conteo.totalHoy;
-  estadoBase.asignadosHoy = conteo.totalHoy;
-  estadoBase.recibidosHoy = conteo.recibidosHoy;
+  /*
+   * Todos estos campos apuntan al MISMO conteo diario para
+   * evitar que la interfaz vuelva a usar acumulados activos.
+   */
+  estadoBase.totalAtencionesHoy = conteo.asignadosHoy;
+  estadoBase.asignadosHoy = conteo.asignadosHoy;
+  estadoBase.recibidosHoy = conteo.asignadosHoy;
   estadoBase.atendidosHoy = conteo.atendidosHoy;
-  estadoBase.prioridad = conteo.prioridad;
+  estadoBase.prioridad = conteo.asignadosHoy;
 
   if (estadoBase.disponible) {
-    estadoBase.texto = `Disponible · Prioridad ${conteo.prioridad}`;
-    estadoBase.motivo = `${conteo.totalHoy} ticket(s) contabilizado(s) hoy`;
+    estadoBase.texto = `Disponible · Prioridad ${conteo.asignadosHoy}`;
+    estadoBase.motivo = `${conteo.asignadosHoy} ticket(s) asignado(s) hoy`;
   }
 
   return estadoBase;
@@ -160,6 +178,9 @@ function seleccionarSiguienteAsesorV12_(
 
   if (!elegibles.length) return null;
 
+  /*
+   * Menor cantidad de asignaciones del dia primero.
+   */
   const minimo = Math.min(
     ...elegibles.map(item => Number(item.asignadosHoy || 0))
   );
@@ -288,6 +309,12 @@ function procesarPendientesV12(token) {
 
     for (const ticket of pendientes) {
       try {
+        /*
+         * Se recalcula antes de cada ticket. Como el ticket
+         * recien asignado recibe TIEMPO INICIO = ahora, la
+         * prioridad se actualiza inmediatamente dentro del
+         * mismo lote de asignaciones.
+         */
         const disponibilidad = obtenerDisponibilidadV12_(
           todos,
           seguimiento
