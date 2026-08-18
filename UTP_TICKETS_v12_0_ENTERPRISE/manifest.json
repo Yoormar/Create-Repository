@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UTP Tickets 12.0 Enterprise FINAL",
-  "version": "12.0.4",
+  "version": "12.0.5",
   "description": "Zendesk Enterprise + DYNAMIC con la misma BASE_TICKETS y clasificación central por DNI.",
   "permissions": ["activeTab", "tabs", "storage", "alarms", "scripting"],
   "host_permissions": [
