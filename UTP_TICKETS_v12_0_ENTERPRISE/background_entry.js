@@ -1,13 +1,61 @@
 importScripts('background_v12.js');
 
-/*
- * V12.0.4
- * La clasificación histórica oficial se basa en BASE_TICKETS por DNI.
- * No se consulta el historial remoto del solicitante de Zendesk antes de
- * avanzar cada ticket, porque esa consulta podía quedarse esperando y dejar
- * la pantalla en "procesados 0 de N".
- */
+/* V12.0.5 - corrección de clasificación BASE_TICKETS */
 try {
+  analyzeAgainstBase = function(row,base){
+    let dni=String(row?.dni||'').trim();
+    const id=String(row?.idTicket||'').trim();
+    const exact=base?.ticketRows?.[id]||null;
+    if(!dni&&exact?.dni)dni=String(exact.dni).trim();
+
+    const analysis=dni?(base?.dniAnalysis?.[dni]||null):null;
+    const history=Array.isArray(base?.dniHistory?.[dni])?base.dniHistory[dni]:[];
+    const ticketList=Array.isArray(base?.tickets)?base.tickets.map(String):[];
+    const exists=Boolean(exact)||ticketList.includes(id);
+
+    let antecedent=analysis?.antecedente||null;
+    if(!antecedent&&history.length){
+      antecedent=history.find(x=>String(x?.idTicket||'')!==id)||history[history.length-1]||null;
+    }
+    if(!antecedent&&exact)antecedent=exact;
+
+    const total=Number(analysis?.totalRegistros||history.length||0);
+    const has=Boolean(antecedent)||total>0;
+    const platform=String(row?.platform||row?.fuente||'ZENDESK').toUpperCase();
+
+    let origen='REVISAR';
+    if(platform==='DYNAMIC')origen='DYNAMIC';
+    else if(has)origen='ZENDESK';
+    else {
+      const detected=String(row?.origen||'').toUpperCase();
+      origen=['PORTAL','ZENDESK'].includes(detected)?detected:'REVISAR';
+    }
+    if(row?.origenManual&&platform!=='DYNAMIC'&&!has){
+      const manual=String(row?.origen||'').toUpperCase();
+      origen=['PORTAL','ZENDESK'].includes(manual)?manual:'REVISAR';
+    }
+
+    const enriched={
+      ...row,
+      idTicket:id,
+      dni,
+      ticketExists:exists,
+      hasAntecedent:has,
+      totalRegistros:total,
+      antecedente:antecedent,
+      tipoTicket:normalizeType(analysis?.tipoTicket||antecedent?.tipoTicket||exact?.tipoTicket),
+      origen,
+      platform,
+      detalleActual:exact?.detalle||antecedent?.detalle||'',
+      fechaInicioBase:exact?.fechaInicio||antecedent?.fechaInicio||analysis?.fechaInicio||'',
+      responsableAnterior:antecedent?.responsable||'',
+      ticketAnterior:antecedent?.idTicket||'',
+      previousTickets:base?.dniTickets?.[dni]||[]
+    };
+
+    return computeStatus({...enriched,tipoTicket:resolveType(enriched)});
+  };
+
   zendeskHistory = async function(){
     return {checked:false,hasPrevious:false,previousTickets:[]};
   };
@@ -23,8 +71,6 @@ try {
 
       let row=analyzeAgainstBase(rows[i],base);
 
-      // Si BASE_TICKETS no tiene antecedente y el origen no está definido,
-      // abrimos únicamente ese ticket para detectar PORTAL/ZENDESK.
       if(!row.hasAntecedent&&!['PORTAL','ZENDESK'].includes(String(row.origen||'').toUpperCase())){
         let tab;
         try{
@@ -40,21 +86,19 @@ try {
       }
 
       rows[i]=row;
-      await patch({phase:'analysis',processed:i+1,results:rows});
+      await patch({phase:'analysis',processed:i+1,results:rows,error:''});
       await sleep(80);
     }
 
     await patch({active:false,paused:false,phase:'ready',results:rows,finishedAt:new Date().toISOString(),error:''});
   };
 }catch(e){
-  console.error('No se pudo aplicar el parche Zendesk V12.0.4',e);
+  console.error('No se pudo aplicar el parche BASE_TICKETS V12.0.5',e);
 }
 
-// Evita que una ejecución que quedó marcada como activa en una versión
-// anterior mantenga la interfaz congelada al actualizar la extensión.
 chrome.storage.local.get('ticketAnalysis').then(data=>{
   const s=data.ticketAnalysis||{};
-  if(s.active&&Number(s.processed||0)===0){
+  if(s.error==='antecedente is not defined'||String(s.error||'').includes('antecedente is not defined')){
     chrome.storage.local.set({ticketAnalysis:{...s,active:false,paused:false,phase:'ready',error:'',cancelled:false}}).catch(()=>{});
   }
 }).catch(()=>{});
