@@ -1,0 +1,623 @@
+<style>
+  /* =========================================================
+     DASHBOARD GERENCIAL
+     Estilos exclusivos con prefijo dg-
+  ========================================================= */
+
+  .dg-vista {
+    display: grid;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .dg-vista.oculto {
+    display: none !important;
+  }
+
+  .dg-cabecera {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background:
+      linear-gradient(
+        135deg,
+        #f8fbff,
+        #ffffff
+      );
+    box-shadow:
+      0 8px 24px
+      rgba(15, 23, 42, 0.05);
+  }
+
+  .dg-cabecera h2 {
+    margin: 0 0 6px;
+    color: #111827;
+    font-size: 22px;
+  }
+
+  .dg-cabecera p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .dg-cabecera-acciones {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .dg-sello {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .dg-boton {
+    min-height: 38px;
+    padding: 9px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #111827;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition:
+      transform 0.12s,
+      border-color 0.12s,
+      box-shadow 0.12s;
+  }
+
+  .dg-boton:hover {
+    transform: translateY(-1px);
+    border-color: #111827;
+    box-shadow:
+      0 4px 12px
+      rgba(15, 23, 42, 0.08);
+  }
+
+  .dg-boton:disabled {
+    cursor: wait;
+    opacity: 0.65;
+    transform: none;
+  }
+
+  .dg-boton-principal {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+  }
+
+  .dg-boton-limpiar {
+    background: #f8fafc;
+  }
+
+  .dg-carga {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid #bfdbfe;
+    border-radius: 11px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .dg-carga.activo {
+    display: flex;
+  }
+
+  .dg-spinner {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    border: 3px solid #bfdbfe;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: dgGirar 0.8s linear infinite;
+  }
+
+  @keyframes dgGirar {
+    to { transform: rotate(360deg); }
+  }
+
+  .dg-mensaje {
+    display: none;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .dg-mensaje.activo { display: block; }
+  .dg-mensaje.ok {
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+  }
+  .dg-mensaje.error {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+  }
+
+  .dg-panel-filtros {
+    padding: 16px;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 5px 16px rgba(15, 23, 42, 0.04);
+  }
+
+  .dg-titulo-panel {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .dg-titulo-panel h3 {
+    margin: 0 0 4px;
+    color: #111827;
+    font-size: 15px;
+  }
+
+  .dg-titulo-panel p {
+    margin: 0;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .dg-filtros {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(170px, 1fr));
+    gap: 12px;
+  }
+
+  .dg-grupo { display: grid; gap: 6px; }
+  .dg-grupo label {
+    color: #374151;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .dg-campo {
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 11px;
+    border: 1px solid #d1d5db;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #111827;
+    font-family: inherit;
+    font-size: 12px;
+    outline: none;
+  }
+
+  .dg-campo:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+  }
+
+  .dg-acciones-filtros {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .dg-resumen-filtros {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11px;
+  }
+
+  .dg-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .dg-kpi {
+    position: relative;
+    min-height: 104px;
+    padding: 15px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 13px;
+    background: #ffffff;
+    box-shadow: 0 5px 15px rgba(15, 23, 42, 0.04);
+  }
+
+  .dg-kpi::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 4px;
+    background: #64748b;
+  }
+
+  .dg-kpi-total::before { background: #f97316; }
+  .dg-kpi-atendidos::before { background: #16a34a; }
+  .dg-kpi-activos::before { background: #2563eb; }
+  .dg-kpi-reevaluados::before { background: #9333ea; }
+  .dg-kpi-tiempo::before { background: #0891b2; }
+  .dg-kpi-cambios::before { background: #dc2626; }
+  .dg-kpi-promedio::before { background: #ca8a04; }
+  .dg-kpi-actualizacion::before { background: #475569; }
+
+  .dg-kpi span {
+    display: block;
+    margin-bottom: 10px;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .dg-kpi strong {
+    display: block;
+    color: #111827;
+    font-size: 24px;
+    line-height: 1.1;
+  }
+
+  .dg-kpi small {
+    display: block;
+    margin-top: 7px;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .dg-kpi-actualizacion strong {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .dg-grid-doble,
+  .dg-grid-analisis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .dg-panel {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 5px 16px rgba(15, 23, 42, 0.04);
+  }
+
+  .dg-panel-ancho { grid-column: 1 / -1; }
+  .dg-subtitulo {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .dg-grafico {
+    min-height: 250px;
+    margin-top: 12px;
+    padding: 12px;
+    overflow: auto;
+    border: 1px solid #eef2f7;
+    border-radius: 11px;
+    background: #fbfdff;
+  }
+
+  .dg-grafico-tendencia { min-height: 330px; }
+  .dg-vacio {
+    display: flex;
+    min-height: 180px;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #94a3b8;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .dg-barras { display: grid; gap: 11px; }
+  .dg-barra-item {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.8fr) minmax(160px, 2fr) 60px;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dg-barra-nombre {
+    overflow: hidden;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dg-barra-pista {
+    height: 12px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e2e8f0;
+  }
+
+  .dg-barra-relleno {
+    height: 100%;
+    min-width: 3px;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2563eb, #60a5fa);
+  }
+
+  .dg-barra-valor {
+    color: #0f172a;
+    font-size: 11px;
+    font-weight: 900;
+    text-align: right;
+  }
+
+  .dg-selector-tendencia { display: flex; gap: 7px; flex-wrap: wrap; }
+  .dg-boton-tendencia {
+    min-height: 32px;
+    padding: 7px 11px;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .dg-boton-tendencia.activo {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+  }
+
+  .dg-leyenda {
+    display: flex;
+    gap: 14px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    color: #64748b;
+    font-size: 10px;
+  }
+  .dg-leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .dg-leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+  .dg-leyenda-ingresados { background: #2563eb; }
+  .dg-leyenda-atendidos { background: #16a34a; }
+  .dg-leyenda-actualizados { background: #f97316; }
+
+  .dg-tabla-wrap {
+    margin-top: 12px;
+    overflow: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 11px;
+  }
+
+  .dg-tabla {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .dg-tabla th,
+  .dg-tabla td {
+    padding: 10px 11px;
+    border-bottom: 1px solid #eef2f7;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .dg-tabla th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .dg-tabla td { color: #475569; }
+  .dg-tabla th:first-child,
+  .dg-tabla td:first-child { text-align: left; }
+  .dg-tabla tbody tr:hover { background: #f8fbff; }
+  .dg-tabla .dg-numero { color: #111827; font-weight: 800; }
+  .dg-tiempo {
+    display: inline-flex;
+    justify-content: center;
+    min-width: 78px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #ecfeff;
+    color: #0e7490;
+    font-weight: 900;
+  }
+  .dg-activo { color: #1d4ed8; font-weight: 900; }
+  .dg-atendido { color: #15803d; font-weight: 900; }
+  .dg-alerta-cambio { color: #b91c1c; font-weight: 900; }
+
+  .dg-pie {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 10px;
+  }
+
+  @media (max-width: 1200px) {
+    .dg-filtros { grid-template-columns: repeat(3, minmax(160px, 1fr)); }
+    .dg-kpis { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+  }
+
+  @media (max-width: 900px) {
+    .dg-cabecera { flex-direction: column; }
+    .dg-filtros { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+    .dg-kpis { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+    .dg-grid-doble,
+    .dg-grid-analisis { grid-template-columns: 1fr; }
+    .dg-panel-ancho { grid-column: auto; }
+  }
+
+  @media (max-width: 600px) {
+    .dg-filtros,
+    .dg-kpis { grid-template-columns: 1fr; }
+    .dg-acciones-filtros { display: grid; grid-template-columns: 1fr; }
+    .dg-boton { width: 100%; }
+    .dg-barra-item { grid-template-columns: minmax(90px, 0.9fr) minmax(120px, 1.5fr) 45px; }
+    .dg-pie { align-items: flex-start; flex-direction: column; }
+  }
+</style>
+
+<section id="vistaDashboardGerencial" class="dg-vista oculto">
+  <header class="dg-cabecera">
+    <div>
+      <h2>Dashboard gerencial</h2>
+      <p>Indicadores estratégicos de atención, tiempos, campus, asesores, reevaluaciones, origen y auditoría.</p>
+    </div>
+    <div class="dg-cabecera-acciones">
+      <span id="dgSelloActualizacion" class="dg-sello">Sin actualizar</span>
+      <button id="dgBotonActualizar" class="dg-boton dg-boton-principal" type="button">Actualizar información</button>
+    </div>
+  </header>
+
+  <div id="dgCarga" class="dg-carga" aria-live="polite">
+    <span class="dg-spinner"></span>
+    <span>Preparando indicadores gerenciales...</span>
+  </div>
+
+  <div id="dgMensaje" class="dg-mensaje" aria-live="polite"></div>
+
+  <section class="dg-panel-filtros">
+    <div class="dg-titulo-panel">
+      <div>
+        <h3>Filtros del informe</h3>
+        <p>Todos los indicadores y gráficos responderán a la selección realizada.</p>
+      </div>
+    </div>
+
+    <div class="dg-filtros">
+      <div class="dg-grupo"><label for="dgFechaDesde">Fecha desde</label><input id="dgFechaDesde" class="dg-campo" type="date"></div>
+      <div class="dg-grupo"><label for="dgFechaHasta">Fecha hasta</label><input id="dgFechaHasta" class="dg-campo" type="date"></div>
+      <div class="dg-grupo"><label for="dgCampus">Campus</label><select id="dgCampus" class="dg-campo"><option value="">Todos los campus</option></select></div>
+      <div class="dg-grupo"><label for="dgAsesor">Asesor</label><select id="dgAsesor" class="dg-campo"><option value="">Todos los asesores · Vista global</option></select></div>
+      <div class="dg-grupo"><label for="dgOrigen">Origen</label><select id="dgOrigen" class="dg-campo"><option value="">Todos los orígenes</option></select></div>
+      <div class="dg-grupo"><label for="dgTipoTicket">Tipo de ticket</label><select id="dgTipoTicket" class="dg-campo"><option value="">Todos los tipos de ticket</option></select></div>
+      <div class="dg-grupo"><label for="dgTipoReevaluacion">Tipo de reevaluación</label><select id="dgTipoReevaluacion" class="dg-campo"><option value="">Todas las reevaluaciones</option></select></div>
+      <div class="dg-grupo"><label for="dgTipoConvalidacion">Tipo de convalidación</label><select id="dgTipoConvalidacion" class="dg-campo"><option value="">Todas las convalidaciones</option></select></div>
+      <div class="dg-grupo"><label for="dgTipoIngreso">Tipo de ingreso</label><select id="dgTipoIngreso" class="dg-campo"><option value="">Todos los tipos de ingreso</option></select></div>
+    </div>
+
+    <div class="dg-acciones-filtros">
+      <button id="dgBotonLimpiarFiltros" class="dg-boton dg-boton-limpiar" type="button">Limpiar filtros</button>
+      <button id="dgBotonAplicarFiltros" class="dg-boton dg-boton-principal" type="button">Aplicar filtros</button>
+    </div>
+
+    <div id="dgResumenFiltros" class="dg-resumen-filtros">Vista global · Todos los registros disponibles</div>
+  </section>
+
+  <section class="dg-kpis">
+    <article class="dg-kpi dg-kpi-total"><span>Total de tickets</span><strong id="dgKpiTotal">0</strong><small>Registros incluidos en los filtros.</small></article>
+    <article class="dg-kpi dg-kpi-atendidos"><span>Tickets atendidos</span><strong id="dgKpiAtendidos">0</strong><small id="dgKpiPorcentajeAtendidos">0 % del total</small></article>
+    <article class="dg-kpi dg-kpi-activos"><span>Tickets activos</span><strong id="dgKpiActivos">0</strong><small>Casos pendientes de cierre.</small></article>
+    <article class="dg-kpi dg-kpi-reevaluados"><span>Reevaluaciones</span><strong id="dgKpiReevaluados">0</strong><small>Tickets clasificados como reevaluados.</small></article>
+    <article class="dg-kpi dg-kpi-tiempo"><span>Tiempo promedio global</span><strong id="dgKpiTiempoPromedio">0 min</strong><small id="dgKpiCasosConTiempo">0 casos con tiempo válido</small></article>
+    <article class="dg-kpi dg-kpi-cambios"><span>Total de cambios</span><strong id="dgKpiTotalCambios">0</strong><small>Modificaciones registradas.</small></article>
+    <article class="dg-kpi dg-kpi-promedio"><span>Promedio de cambios</span><strong id="dgKpiPromedioCambios">0</strong><small>Cambios promedio por ticket.</small></article>
+    <article class="dg-kpi dg-kpi-actualizacion"><span>Última actualización</span><strong id="dgKpiUltimaActualizacion">Sin información</strong><small>Último movimiento dentro del periodo.</small></article>
+  </section>
+
+  <section class="dg-panel dg-panel-ancho">
+    <div class="dg-titulo-panel">
+      <div><h3>Tendencia general</h3><p>Comparación de tickets ingresados, atendidos y actualizados durante el periodo.</p></div>
+      <div class="dg-selector-tendencia">
+        <button id="dgBotonTendenciaDiaria" class="dg-boton-tendencia activo" type="button">Tendencia diaria</button>
+        <button id="dgBotonTendenciaMensual" class="dg-boton-tendencia" type="button">Tendencia mensual</button>
+      </div>
+    </div>
+    <div class="dg-leyenda">
+      <span><i class="dg-leyenda-ingresados"></i>Ingresados</span>
+      <span><i class="dg-leyenda-atendidos"></i>Atendidos</span>
+      <span><i class="dg-leyenda-actualizados"></i>Actualizados</span>
+    </div>
+    <div id="dgGraficoTendencia" class="dg-grafico dg-grafico-tendencia"><div class="dg-vacio">La tendencia aparecerá al cargar la información.</div></div>
+  </section>
+
+  <div class="dg-grid-doble">
+    <section class="dg-panel"><div class="dg-titulo-panel"><div><h3>Tickets por campus</h3><p>Volumen de tickets según campus.</p></div></div><div id="dgGraficoCampus" class="dg-grafico"><div class="dg-vacio">Sin información de campus.</div></div></section>
+    <section class="dg-panel"><div class="dg-titulo-panel"><div><h3>Tickets por asesor</h3><p>Comparación del volumen gestionado por responsable.</p></div></div><div id="dgGraficoAsesor" class="dg-grafico"><div class="dg-vacio">Sin información de asesores.</div></div></section>
+  </div>
+
+  <section class="dg-panel dg-panel-ancho">
+    <div class="dg-titulo-panel"><div><h3>Rendimiento por campus</h3><p>Cantidad total, atendidos, activos y tiempo promedio.</p></div></div>
+    <div class="dg-tabla-wrap"><table class="dg-tabla"><thead><tr><th>Campus</th><th>Tickets</th><th>Atendidos</th><th>Activos</th><th>Reevaluados</th><th>% atendidos</th><th>Tiempo promedio</th></tr></thead><tbody id="dgTablaCampus"><tr><td colspan="7">No hay información cargada.</td></tr></tbody></table></div>
+  </section>
+
+  <section class="dg-panel dg-panel-ancho">
+    <div class="dg-titulo-panel"><div><h3>Rendimiento y tiempo promedio por asesor</h3><p>El promedio considera solamente tickets atendidos con información válida de tiempo.</p></div></div>
+    <div class="dg-tabla-wrap"><table class="dg-tabla"><thead><tr><th>Asesor</th><th>Tickets</th><th>Atendidos</th><th>Activos</th><th>Reevaluados</th><th>% atendidos</th><th>Casos con tiempo</th><th>Tiempo promedio</th></tr></thead><tbody id="dgTablaAsesor"><tr><td colspan="8">No hay información cargada.</td></tr></tbody></table></div>
+  </section>
+
+  <div class="dg-grid-analisis">
+    <section class="dg-panel"><div class="dg-titulo-panel"><div><h3>Tipo de ticket</h3><p>Distribución general de los casos registrados.</p></div></div><div id="dgGraficoTipoTicket" class="dg-grafico"><div class="dg-vacio">Sin información de tipos de ticket.</div></div></section>
+    <section class="dg-panel"><div class="dg-titulo-panel"><div><h3>Tipo de reevaluación</h3><p>Detalle aplicado únicamente a tickets reevaluados.</p></div></div><div id="dgGraficoReevaluacion" class="dg-grafico"><div class="dg-vacio">Sin información de reevaluaciones.</div></div></section>
+  </div>
+
+  <div class="dg-grid-analisis">
+    <section class="dg-panel"><div class="dg-titulo-panel"><div><h3>Origen de los tickets</h3><p>Comparación entre Zendesk, Portal y otros orígenes registrados.</p></div></div><div id="dgGraficoOrigen" class="dg-grafico"><div class="dg-vacio">Sin información de origen.</div></div></section>
+    <section class="dg-panel"><div class="dg-titulo-panel"><div><h3>Tipo de convalidación</h3><p>Distribución según modalidad de convalidación.</p></div></div><div id="dgGraficoConvalidacion" class="dg-grafico"><div class="dg-vacio">Sin información de convalidación.</div></div></section>
+    <section class="dg-panel dg-panel-ancho"><div class="dg-titulo-panel"><div><h3>Tipo de ingreso</h3><p>Distribución de tickets por modalidad de ingreso.</p></div></div><div id="dgGraficoIngreso" class="dg-grafico"><div class="dg-vacio">Sin información de tipos de ingreso.</div></div></section>
+  </div>
+
+  <section class="dg-panel dg-panel-ancho">
+    <div class="dg-titulo-panel"><div><h3>Casos con mayor tiempo de atención</h3><p>Tickets atendidos que presentan los tiempos más altos dentro del filtro seleccionado.</p></div></div>
+    <div class="dg-tabla-wrap"><table class="dg-tabla"><thead><tr><th>Ticket</th><th>Alumno</th><th>Campus</th><th>Asesor</th><th>Origen</th><th>Tipo de ticket</th><th>Tiempo total</th></tr></thead><tbody id="dgTablaMayorTiempo"><tr><td colspan="7">No hay información cargada.</td></tr></tbody></table></div>
+  </section>
+
+  <section class="dg-panel dg-panel-ancho">
+    <div class="dg-titulo-panel"><div><h3>Auditoría de modificaciones</h3><p>Tickets con mayor cantidad de cambios, última actualización y usuario modificador.</p></div></div>
+    <div class="dg-tabla-wrap"><table class="dg-tabla"><thead><tr><th>Ticket</th><th>Alumno</th><th>Campus</th><th>Asesor</th><th>Tipo de ticket</th><th>N.º de cambios</th><th>Última actualización</th><th>Usuario que modificó</th></tr></thead><tbody id="dgTablaAuditoria"><tr><td colspan="8">No hay información cargada.</td></tr></tbody></table></div>
+  </section>
+
+  <footer class="dg-pie">
+    <span>Este informe se genera únicamente al abrir o actualizar el Dashboard Gerencial.</span>
+    <span id="dgPieGenerado">Información aún no generada.</span>
+  </footer>
+</section>
