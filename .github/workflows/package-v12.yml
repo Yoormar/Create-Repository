@@ -1,0 +1,22 @@
+name: Package UTP Tickets v12
+on:
+  push:
+    branches:
+      - utp-tickets-v12
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ZIP
+        run: |
+          cd UTP_TICKETS_v12_0_ENTERPRISE
+          zip -r ../UTP_TICKETS_v12_0_ENTERPRISE.zip .
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: UTP_TICKETS_v12_0_ENTERPRISE
+          path: UTP_TICKETS_v12_0_ENTERPRISE.zip
+          if-no-files-found: error
