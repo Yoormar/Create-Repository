@@ -1,0 +1,620 @@
+<style>
+/* DASHBOARD DYNAMIC V8 - COMPLEMENTO VISUAL ADITIVO */
+.tarjeta-kpi-dynamic {
+  border-color: #7c3aed !important;
+  background: #f5f3ff !important;
+}
+
+.barra-valor-dynamic {
+  background: #7c3aed !important;
+}
+
+.origen-dynamic {
+  background: #ede9fe !important;
+  color: #5b21b6 !important;
+}
+
+/* No ocultar todo el dashboard mientras termina la carga pesada. */
+#vistaDashboardAdmin.cargando-dashboard-real-ui
+> :not(#cargadorDashboardRealUI) {
+  display: initial;
+}
+
+#cargadorDashboardRealUI {
+  display: none !important;
+}
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  if (window.__DASHBOARD_DYNAMIC_V8_UI__) return;
+  window.__DASHBOARD_DYNAMIC_V8_UI__ = true;
+
+  const CACHE_MS = 90 * 1000;
+  let solicitudActual = 0;
+  let cargando = false;
+  let claveCargando = '';
+
+  function e(id) {
+    return document.getElementById(id);
+  }
+
+  function escapar(valor) {
+    if (typeof escapeHtml === 'function') {
+      return escapeHtml(valor);
+    }
+
+    return String(valor ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function filtrosV8() {
+    if (typeof obtenerFiltrosDashboard === 'function') {
+      return obtenerFiltrosDashboard();
+    }
+
+    return {
+      mes: '',
+      anio: '',
+      plataforma: '',
+      asesor: '__GLOBAL__'
+    };
+  }
+
+  function claveV8() {
+    const f = filtrosV8();
+
+    return JSON.stringify({
+      mes: f.mes || '',
+      anio: f.anio || '',
+      plataforma: f.plataforma || '',
+      asesor: f.asesor || '__GLOBAL__'
+    });
+  }
+
+  function claveCacheV8() {
+    return 'DASHBOARD_DYNAMIC_V8|' + claveV8();
+  }
+
+  function guardarCacheV8(datos) {
+    try {
+      sessionStorage.setItem(
+        claveCacheV8(),
+        JSON.stringify({ fecha: Date.now(), datos: datos })
+      );
+    } catch (error) {}
+  }
+
+  function leerCacheV8() {
+    try {
+      const texto = sessionStorage.getItem(claveCacheV8());
+      if (!texto) return null;
+
+      const item = JSON.parse(texto);
+
+      if (
+        !item ||
+        !item.datos ||
+        !item.datos.ok ||
+        Date.now() - Number(item.fecha || 0) > CACHE_MS
+      ) {
+        return null;
+      }
+
+      return item.datos;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function insertarOpcion(select, valor, texto) {
+    if (!select) return;
+
+    const existe = Array.from(select.options)
+      .some(option => option.value === valor);
+
+    if (existe) return;
+
+    const option = document.createElement('option');
+    option.value = valor;
+    option.textContent = texto;
+    select.appendChild(option);
+  }
+
+  function asegurarTarjetaDynamic() {
+    if (e('dashAtendidosDynamic')) return;
+
+    const referencia = e('dashAtendidosPortal')?.closest('article');
+    if (!referencia) return;
+
+    const article = document.createElement('article');
+    article.className = 'tarjeta tarjeta-kpi tarjeta-kpi-dynamic';
+    article.innerHTML = `
+      <span>Atendidos Dynamic</span>
+      <strong id="dashAtendidosDynamic">0</strong>
+    `;
+
+    referencia.insertAdjacentElement('afterend', article);
+  }
+
+  function asegurarBarraDynamic() {
+    if (e('dashAsesorDynamic')) return;
+
+    const referencia = e('barraAsesorPortal')?.closest('.barra-item');
+    if (!referencia) return;
+
+    const bloque = document.createElement('div');
+    bloque.className = 'barra-item';
+    bloque.innerHTML = `
+      <div class="barra-etiqueta">
+        <span>Dynamic</span>
+        <strong id="dashAsesorDynamic">0</strong>
+      </div>
+      <div class="barra-fondo">
+        <div id="barraAsesorDynamic" class="barra-valor barra-valor-dynamic"></div>
+      </div>
+    `;
+
+    referencia.insertAdjacentElement('afterend', bloque);
+  }
+
+  function agregarThAntesDeTexto(tbodyId, textoNuevo, textoReferencia, clave) {
+    const tbody = e(tbodyId);
+    const fila = tbody?.closest('table')?.querySelector('thead tr');
+    if (!fila) return;
+
+    if (fila.querySelector(`[data-dynamic-v8="${clave}"]`)) return;
+
+    const th = document.createElement('th');
+    th.dataset.dynamicV8 = clave;
+    th.textContent = textoNuevo;
+
+    const referencia = Array.from(fila.children).find(
+      item => item.textContent.trim().toUpperCase() === textoReferencia.toUpperCase()
+    );
+
+    fila.insertBefore(th, referencia || null);
+  }
+
+  function asegurarColumnasDynamic() {
+    agregarThAntesDeTexto(
+      'cuerpoVistaDiariaDashboard',
+      'Atendidos Dynamic',
+      'Total atendidos',
+      'vista-diaria'
+    );
+
+    agregarThAntesDeTexto(
+      'cuerpoDiarioDashboard',
+      'Ing. Dynamic',
+      'Total ing.',
+      'ingreso-global'
+    );
+
+    agregarThAntesDeTexto(
+      'cuerpoDiarioDashboard',
+      'ATC Dynamic',
+      'Total ATC',
+      'atc-global'
+    );
+
+    agregarThAntesDeTexto(
+      'cuerpoAtencionDiariaOrdenable',
+      'ATC Dynamic',
+      'Total ATC',
+      'atc-ordenable'
+    );
+
+    agregarThAntesDeTexto(
+      'rankingDashboard',
+      'ATC Dynamic hoy',
+      'Total ATC hoy',
+      'ranking'
+    );
+
+    const orden = e('ordenAtencionDiaria');
+
+    if (
+      orden &&
+      !Array.from(orden.options)
+        .some(option => option.value === 'dynamic_desc')
+    ) {
+      const option = document.createElement('option');
+      option.value = 'dynamic_desc';
+      option.textContent = 'ATC Dynamic · mayor a menor';
+      orden.appendChild(option);
+    }
+  }
+
+  function asegurarEstructuraDynamic() {
+    insertarOpcion(e('dashPlataforma'), 'DYNAMIC', 'Dynamic');
+    insertarOpcion(e('filtroOrigen'), 'DYNAMIC', 'DYNAMIC');
+    asegurarTarjetaDynamic();
+    asegurarBarraDynamic();
+    asegurarColumnasDynamic();
+
+    const panel = e('vistaDashboardAdmin');
+    if (panel) {
+      panel.classList.remove('dashboard-esperando-ui');
+      panel.classList.remove('cargando-dashboard-real-ui');
+      panel.setAttribute('aria-busy', 'false');
+    }
+  }
+
+  function pintarKpis(datos) {
+    const r = datos.resumenGeneral || {};
+
+    if (typeof setText === 'function') {
+      setText('dashActivos', Number(r.activos || 0));
+      setText('dashAtendidosZendesk', Number(r.atendidosZendesk || 0));
+      setText('dashAtendidosPortal', Number(r.atendidosPortal || 0));
+      setText('dashAtendidosDynamic', Number(r.atendidosDynamic || 0));
+      setText('dashTotalAtendidos', Number(r.totalAtendidos || 0));
+    }
+  }
+
+  function pintarBarras(datos) {
+    const p = datos.asesor?.plataforma || {};
+
+    const zendesk = Number(p.zendesk || 0);
+    const portal = Number(p.portal || 0);
+    const dynamic = Number(p.dynamic || 0);
+
+    if (typeof setText === 'function') {
+      setText('dashAsesorZendesk', zendesk);
+      setText('dashAsesorPortal', portal);
+      setText('dashAsesorDynamic', dynamic);
+    }
+
+    const maximo = Math.max(zendesk, portal, dynamic, 1);
+
+    if (e('barraAsesorZendesk')) {
+      e('barraAsesorZendesk').style.width = `${zendesk / maximo * 100}%`;
+    }
+
+    if (e('barraAsesorPortal')) {
+      e('barraAsesorPortal').style.width = `${portal / maximo * 100}%`;
+    }
+
+    if (e('barraAsesorDynamic')) {
+      e('barraAsesorDynamic').style.width = `${dynamic / maximo * 100}%`;
+    }
+  }
+
+  function pintarVistaDiaria(filas) {
+    const tbody = e('cuerpoVistaDiariaDashboard');
+    const selector = e('filtroDiaDashboard');
+    if (!tbody || !selector) return;
+
+    const lista = filas || [];
+    const actual = selector.value;
+
+    selector.innerHTML =
+      '<option value="">Todos los días del periodo</option>' +
+      lista.map(fila => `
+        <option value="${escapar(fila.clave)}">${escapar(fila.fecha)}</option>
+      `).join('');
+
+    if (actual && lista.some(fila => fila.clave === actual)) {
+      selector.value = actual;
+    }
+
+    const visibles = selector.value
+      ? lista.filter(fila => fila.clave === selector.value)
+      : lista;
+
+    const totalPeriodo = lista.reduce(
+      (suma, fila) => suma + Number(fila.totalAtendido || 0),
+      0
+    );
+
+    const diasActivos = lista.filter(
+      fila => Number(fila.totalAtendido || 0) > 0
+    ).length;
+
+    const promedio = diasActivos ? totalPeriodo / diasActivos : 0;
+    const maximo = lista.length
+      ? Math.max(...lista.map(fila => Number(fila.totalAtendido || 0)))
+      : 0;
+
+    if (typeof setText === 'function') {
+      setText('dashDiarioTotalPeriodo', totalPeriodo);
+      setText('dashDiarioDiasActivos', diasActivos);
+      setText('dashDiarioPromedio', promedio.toFixed(1));
+      setText('dashDiarioMaximo', maximo);
+    }
+
+    if (!visibles.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="sin-datos">
+            No hay tickets atendidos para el periodo seleccionado.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = visibles.map(fila => `
+      <tr>
+        <td>${escapar(fila.fecha)}</td>
+        <td>${Number(fila.atendidoZendesk || 0)}</td>
+        <td>${Number(fila.atendidoPortal || 0)}</td>
+        <td>${Number(fila.atendidoDynamic || 0)}</td>
+        <td><strong>${Number(fila.totalAtendido || 0)}</strong></td>
+      </tr>
+    `).join('');
+  }
+
+  function pintarDiarioGlobal(filas) {
+    const tbody = e('cuerpoDiarioDashboard');
+    if (!tbody) return;
+
+    const lista = filas || [];
+
+    if (!lista.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" class="sin-datos">
+            No hay registros para el periodo seleccionado.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = lista.map(fila => `
+      <tr>
+        <td>${escapar(fila.fecha)}</td>
+        <td>${Number(fila.ingresoZendesk || 0)}</td>
+        <td>${Number(fila.ingresoPortal || 0)}</td>
+        <td>${Number(fila.ingresoDynamic || 0)}</td>
+        <td><strong>${Number(fila.totalIngresado || 0)}</strong></td>
+        <td>${Number(fila.atendidoZendesk || 0)}</td>
+        <td>${Number(fila.atendidoPortal || 0)}</td>
+        <td>${Number(fila.atendidoDynamic || 0)}</td>
+        <td><strong>${Number(fila.totalAtendido || 0)}</strong></td>
+      </tr>
+    `).join('');
+  }
+
+  function ordenarFilas(filas) {
+    const orden = e('ordenAtencionDiaria')?.value || 'fecha_desc';
+    const copia = [...(filas || [])];
+
+    copia.sort((a, b) => {
+      if (orden === 'fecha_asc') {
+        return String(a.clave || '').localeCompare(String(b.clave || ''));
+      }
+      if (orden === 'total_desc') {
+        return Number(b.totalAtendido || 0) - Number(a.totalAtendido || 0);
+      }
+      if (orden === 'total_asc') {
+        return Number(a.totalAtendido || 0) - Number(b.totalAtendido || 0);
+      }
+      if (orden === 'zendesk_desc') {
+        return Number(b.atendidoZendesk || 0) - Number(a.atendidoZendesk || 0);
+      }
+      if (orden === 'portal_desc') {
+        return Number(b.atendidoPortal || 0) - Number(a.atendidoPortal || 0);
+      }
+      if (orden === 'dynamic_desc') {
+        return Number(b.atendidoDynamic || 0) - Number(a.atendidoDynamic || 0);
+      }
+      return String(b.clave || '').localeCompare(String(a.clave || ''));
+    });
+
+    return copia;
+  }
+
+  function pintarDiarioOrdenable(filas) {
+    const tbody = e('cuerpoAtencionDiariaOrdenable');
+    if (!tbody) return;
+
+    const lista = ordenarFilas(filas);
+
+    if (!lista.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="sin-datos">
+            No hay atenciones para el periodo seleccionado.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = lista.map(fila => `
+      <tr>
+        <td>${escapar(fila.fecha)}</td>
+        <td>${Number(fila.atendidoZendesk || 0)}</td>
+        <td>${Number(fila.atendidoPortal || 0)}</td>
+        <td>${Number(fila.atendidoDynamic || 0)}</td>
+        <td>
+          <strong class="total-atencion-diaria">
+            ${Number(fila.totalAtendido || 0)}
+          </strong>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function pintarRanking(datos) {
+    const tbody = e('rankingDashboard');
+    if (!tbody) return;
+
+    const lista = datos.ranking || [];
+
+    if (!lista.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="sin-datos">
+            No hay atenciones registradas.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = lista.map((fila, indice) => `
+      <tr>
+        <td><span class="ranking-posicion">${indice + 1}</span></td>
+        <td><strong>${escapar(fila.asesor)}</strong></td>
+        <td>${Number(fila.hoyZendesk || 0)}</td>
+        <td>${Number(fila.hoyPortal || 0)}</td>
+        <td>${Number(fila.hoyDynamic || 0)}</td>
+        <td><strong class="ranking-total-hoy">${Number(fila.totalHoy || 0)}</strong></td>
+        <td><strong class="ranking-total-global">${Number(fila.global || 0)}</strong></td>
+      </tr>
+    `).join('');
+  }
+
+  function pintarComplemento(datos) {
+    if (!datos || !datos.ok) return;
+
+    asegurarEstructuraDynamic();
+    pintarKpis(datos);
+    pintarBarras(datos);
+    pintarVistaDiaria(datos.diario || []);
+    pintarDiarioGlobal(datos.diario || []);
+    pintarDiarioOrdenable(datos.diario || []);
+    pintarRanking(datos);
+
+    if (typeof estado === 'object') {
+      estado.diarioDashboard = datos.diario || [];
+    }
+  }
+
+  function cargarComplemento(forzar) {
+    if (estado?.sesion?.rol !== 'ADMIN') return;
+
+    asegurarEstructuraDynamic();
+
+    const cache = !forzar ? leerCacheV8() : null;
+    if (cache) pintarComplemento(cache);
+
+    const clave = claveV8();
+
+    if (cargando && claveCargando === clave) return;
+
+    cargando = true;
+    claveCargando = clave;
+
+    const solicitud = ++solicitudActual;
+
+    google.script.run
+      .withSuccessHandler(resultado => {
+        if (solicitud !== solicitudActual) return;
+
+        cargando = false;
+        claveCargando = '';
+
+        if (!resultado || !resultado.ok) return;
+
+        guardarCacheV8(resultado);
+        pintarComplemento(resultado);
+      })
+      .withFailureHandler(() => {
+        if (solicitud === solicitudActual) {
+          cargando = false;
+          claveCargando = '';
+        }
+      })
+      .obtenerDashboardDynamicV8(
+        estado.token,
+        filtrosV8()
+      );
+  }
+
+  function desactivarBloqueoVisualCarga() {
+    const panel = e('vistaDashboardAdmin');
+    if (!panel) return;
+
+    panel.classList.remove('dashboard-esperando-ui');
+    panel.classList.remove('cargando-dashboard-real-ui');
+    panel.setAttribute('aria-busy', 'false');
+  }
+
+  function observarCarga() {
+    const panel = e('vistaDashboardAdmin');
+    if (!panel) return;
+
+    desactivarBloqueoVisualCarga();
+
+    const observer = new MutationObserver(desactivarBloqueoVisualCarga);
+    observer.observe(panel, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+  }
+
+  function envolverFunciones() {
+    const cargarAnterior = window.cargarDashboardAdmin;
+
+    if (typeof cargarAnterior === 'function' && !cargarAnterior.__dynamicV8) {
+      const nueva = function () {
+        cargarComplemento(false);
+        return cargarAnterior.apply(this, arguments);
+      };
+
+      nueva.__dynamicV8 = true;
+      window.cargarDashboardAdmin = nueva;
+    }
+
+    const pintarAnterior = window.pintarDashboard;
+
+    if (typeof pintarAnterior === 'function' && !pintarAnterior.__dynamicV8) {
+      const nuevaPintar = function () {
+        const resultado = pintarAnterior.apply(this, arguments);
+        const cache = leerCacheV8();
+        if (cache) pintarComplemento(cache);
+        cargarComplemento(false);
+        return resultado;
+      };
+
+      nuevaPintar.__dynamicV8 = true;
+      window.pintarDashboard = nuevaPintar;
+    }
+
+    if (typeof window.claseOrigen === 'function') {
+      const anteriorOrigen = window.claseOrigen;
+
+      window.claseOrigen = function (origen) {
+        const valor = typeof normalizarCliente === 'function'
+          ? normalizarCliente(origen)
+          : String(origen || '').trim().toUpperCase();
+
+        if (valor === 'DYNAMIC') return 'origen-dynamic';
+        return anteriorOrigen(origen);
+      };
+    }
+  }
+
+  function iniciar() {
+    asegurarEstructuraDynamic();
+    observarCarga();
+    envolverFunciones();
+
+    window.setTimeout(() => {
+      if (
+        estado?.vistaActual === 'dashboard' &&
+        estado?.sesion?.rol === 'ADMIN'
+      ) {
+        cargarComplemento(false);
+      }
+    }, 100);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
+})();
+</script>
