@@ -1,0 +1,27 @@
+name: Package UTP Tickets V12 for Chat
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate extension
+        run: |
+          test -f UTP_TICKETS_v12_0_ENTERPRISE/manifest.json
+          test -f UTP_TICKETS_v12_0_ENTERPRISE/background_entry.js
+          test -f UTP_TICKETS_v12_0_ENTERPRISE/background_v12.js
+          test -f UTP_TICKETS_v12_0_ENTERPRISE/ui_v12.js
+
+      - name: Upload extension folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: UTP_TICKETS_12_0_5_ENTERPRISE_DIRECTO
+          path: UTP_TICKETS_v12_0_ENTERPRISE/
+          if-no-files-found: error
