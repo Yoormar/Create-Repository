@@ -1,0 +1,218 @@
+<style>
+/* =========================================================
+   DASHBOARD INICIO RAPIDO V9 UI
+   Muestra la estructura existente mientras termina la carga completa.
+========================================================= */
+#vistaDashboardAdmin.cargando-dashboard-real-ui {
+  min-height: 0 !important;
+}
+
+#vistaDashboardAdmin.cargando-dashboard-real-ui > :not(#cargadorDashboardRealUI) {
+  display: revert !important;
+}
+
+#cargadorDashboardRealUI {
+  display: none !important;
+}
+
+.dashboard-inicio-v9-cargando::after {
+  content: 'Actualizando datos completos...';
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 9999;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #111111;
+  color: #ffffff;
+  box-shadow: 0 10px 26px rgba(15,23,42,.22);
+  font-size: 12px;
+  font-weight: 800;
+}
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  if (window.__DASHBOARD_INICIO_RAPIDO_V9_UI__) {
+    return;
+  }
+
+  window.__DASHBOARD_INICIO_RAPIDO_V9_UI__ = true;
+
+  let cargandoRapidoV9 = false;
+  let numeroSolicitudV9 = 0;
+
+  function d(id) {
+    return document.getElementById(id);
+  }
+
+  function filtrosV9() {
+    if (typeof obtenerFiltrosDashboard === 'function') {
+      return obtenerFiltrosDashboard();
+    }
+
+    return {
+      mes: d('dashMes')?.value || '',
+      anio: d('dashAnio')?.value || '',
+      plataforma: d('dashPlataforma')?.value || '',
+      asesor: d('dashAsesor')?.value || '__GLOBAL__'
+    };
+  }
+
+  function pintarRapidoV9(datos) {
+    if (!datos || !datos.ok) {
+      return;
+    }
+
+    const r = datos.resumenGeneral || {};
+    const a = datos.asesor || {};
+    const e = a.estados || {};
+    const p = a.plataforma || {};
+
+    if (typeof setText === 'function') {
+      setText('dashActivos', Number(r.activos || 0));
+      setText('dashAtendidosZendesk', Number(r.atendidosZendesk || 0));
+      setText('dashAtendidosPortal', Number(r.atendidosPortal || 0));
+      setText('dashAtendidosDynamic', Number(r.atendidosDynamic || 0));
+      setText('dashTotalAtendidos', Number(r.totalAtendidos || 0));
+
+      setText('dashNombreAsesor', a.nombre || 'Vista global');
+      setText('dashActivosAsesor', Number(a.activos || 0));
+      setText('dashAtendidosAsesor', Number(a.atendidos || 0));
+
+      setText('dashEstadoRevision', Number(e.enRevision || 0));
+      setText('dashEstadoPendiente', Number(e.pendiente || 0));
+      setText('dashEstadoEspera', Number(e.enEspera || 0));
+      setText('dashEstadoSeguimiento', Number(e.seguimiento || 0));
+      setText('dashEstadoDerivado', Number(e.derivado || 0));
+      setText('dashEstadoAtendido', Number(e.atendido || 0));
+
+      setText('dashAsesorZendesk', Number(p.zendesk || 0));
+      setText('dashAsesorPortal', Number(p.portal || 0));
+      setText('dashAsesorDynamic', Number(p.dynamic || 0));
+    }
+
+    const maximo = Math.max(
+      Number(p.zendesk || 0),
+      Number(p.portal || 0),
+      Number(p.dynamic || 0),
+      1
+    );
+
+    const barraZ = d('barraAsesorZendesk');
+    const barraP = d('barraAsesorPortal');
+    const barraD = d('barraAsesorDynamic');
+
+    if (barraZ) barraZ.style.width = `${Number(p.zendesk || 0) / maximo * 100}%`;
+    if (barraP) barraP.style.width = `${Number(p.portal || 0) / maximo * 100}%`;
+    if (barraD) barraD.style.width = `${Number(p.dynamic || 0) / maximo * 100}%`;
+
+    const panel = d('vistaDashboardAdmin');
+    if (panel) {
+      panel.classList.remove('cargando-dashboard-real-ui');
+      panel.classList.remove('dashboard-esperando-ui');
+      panel.setAttribute('aria-busy', 'false');
+    }
+  }
+
+  function cargarInicioRapidoV9() {
+    if (estado?.sesion?.rol !== 'ADMIN' || cargandoRapidoV9) {
+      return;
+    }
+
+    cargandoRapidoV9 = true;
+    const solicitud = ++numeroSolicitudV9;
+
+    google.script.run
+      .withSuccessHandler(resultado => {
+        if (solicitud !== numeroSolicitudV9) return;
+        cargandoRapidoV9 = false;
+        pintarRapidoV9(resultado);
+      })
+      .withFailureHandler(() => {
+        if (solicitud === numeroSolicitudV9) {
+          cargandoRapidoV9 = false;
+        }
+      })
+      .obtenerDashboardInicioRapidoV9(
+        estado.token,
+        filtrosV9()
+      );
+  }
+
+  function quitarBloqueoVisualV9() {
+    const panel = d('vistaDashboardAdmin');
+    if (!panel) return;
+
+    panel.classList.remove('cargando-dashboard-real-ui');
+    panel.classList.remove('dashboard-esperando-ui');
+    panel.setAttribute('aria-busy', 'false');
+  }
+
+  function envolverCargaDashboardV9() {
+    const anterior = window.cargarDashboardAdmin;
+
+    if (typeof anterior !== 'function' || anterior.__inicioRapidoV9) {
+      return;
+    }
+
+    const nueva = function () {
+      quitarBloqueoVisualV9();
+      cargarInicioRapidoV9();
+
+      const panel = d('vistaDashboardAdmin');
+      panel?.classList.add('dashboard-inicio-v9-cargando');
+
+      const resultado = anterior.apply(this, arguments);
+
+      window.setTimeout(() => {
+        panel?.classList.remove('dashboard-inicio-v9-cargando');
+      }, 12000);
+
+      return resultado;
+    };
+
+    nueva.__inicioRapidoV9 = true;
+    window.cargarDashboardAdmin = nueva;
+  }
+
+  function observarPanelV9() {
+    const panel = d('vistaDashboardAdmin');
+    if (!panel) return;
+
+    quitarBloqueoVisualV9();
+
+    const observer = new MutationObserver(() => {
+      quitarBloqueoVisualV9();
+    });
+
+    observer.observe(panel, {
+      attributes: true,
+      attributeFilter: ['class', 'aria-busy']
+    });
+  }
+
+  function iniciarV9() {
+    observarPanelV9();
+    envolverCargaDashboardV9();
+
+    window.setTimeout(() => {
+      if (
+        estado?.sesion?.rol === 'ADMIN' &&
+        estado?.vistaActual === 'dashboard'
+      ) {
+        quitarBloqueoVisualV9();
+        cargarInicioRapidoV9();
+      }
+    }, 50);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciarV9);
+  } else {
+    iniciarV9();
+  }
+})();
+</script>
