@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>
+    Gestión de Tickets UTP
+  </title>
+
+  <?!= incluir('Estilos'); ?>
+</head>
+
+<body>
+
+  <!-- =====================================================
+       INICIO DE SESIÓN
+  ====================================================== -->
+
+  <main
+    id="paginaLogin"
+    class="pagina-login"
+  >
+    <section class="tarjeta-login">
+      <header class="cabecera-login">
+        <div class="logo-utp">
+          UTP
+        </div>
+
+        <h1>
+          Gestión de Tickets
+        </h1>
+
+        <p>
+          Selecciona tu usuario e ingresa tu clave.
+        </p>
+      </header>
+
+      <div class="formulario-login">
+        <div class="grupo">
+          <label for="usuario">
+            Usuario
+          </label>
+
+          <select
+            id="usuario"
+            class="campo"
+          >
+            <option value="">
+              Cargando usuarios...
+            </option>
+          </select>
+        </div>
+
+        <div class="grupo">
+          <label for="clave">
+            Clave
+          </label>
+
+          <input
+            id="clave"
+            class="campo"
+            type="password"
+            placeholder="Ingresa tu clave"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button
+          id="botonIngresar"
+          class="boton boton-principal boton-login"
+          type="button"
+        >
+          INGRESAR
+        </button>
+
+        <div
+          id="mensajeLogin"
+          class="mensaje mensaje-error"
+        ></div>
+      </div>
+    </section>
+  </main>
+
+
+  <!-- =====================================================
+       SISTEMA
+  ====================================================== -->
+
+  <main
+    id="paginaSistema"
+    class="oculto"
+  >
+    <!-- ALERTAS DEL USUARIO -->
+    <div
+      id="barraAlertasDatosUsuario"
+      class="barra-alertas-usuario oculto"
+    ></div>
+
+    <!-- BARRA SUPERIOR -->
+    <header class="barra-superior">
+      <div class="marca-sistema">
+        <div class="logo-pequeno">
+          UTP
+        </div>
+
+        <strong>
+          Gestión de Tickets
+        </strong>
+      </div>
+
+      <div class="usuario-superior">
+        <div class="datos-usuario">
+          <strong id="nombreSesion">
+            Usuario
+          </strong>
+
+          <span id="rolSesion">
+            Rol
+          </span>
+        </div>
+
+        <button
+          id="botonSalir"
+          class="boton-salir"
+          type="button"
+        >
+          Salir
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <section class="contenido">
+      <div class="encabezado-pagina">
+        <div>
+          <h2 id="tituloBienvenida">
+            Dashboard
+          </h2>
+
+          <p id="subtituloDashboard">
+            Resumen de tickets.
+          </p>
+        </div>
+
+        <div class="acciones-superiores">
+          <button
+            id="botonDashboardAdmin"
+            class="boton boton-secundario boton-vista oculto"
+            type="button"
+          >
+            Dashboard
+          </button>
+
+          <button
+            id="botonBandeja"
+            class="boton boton-secundario boton-vista"
+            type="button"
+          >
+            Bandeja
+          </button>
+
+          <button
+            id="botonUsuarios"
+            class="boton boton-secundario oculto"
+            type="button"
+          >
+            Administrar usuarios
+          </button>
+
+          <button
+            id="botonCambiarClave"
+            class="boton boton-secundario"
+            type="button"
+          >
+            Cambiar mi clave
+          </button>
+
+          <button
+            id="botonActualizar"
+            class="boton boton-secundario"
+            type="button"
+          >
+            Actualizar
+          </button>
+        </div>
+      </div>
+
+      <!-- DASHBOARD ADMINISTRADOR -->
+      <?!= incluir('Dashboard'); ?>
+
+      <!-- BANDEJA Y MODAL DE TICKET -->
+      <?!= incluir('Tickets'); ?>
+    </section>
+  </main>
+
+
+  <!-- =====================================================
+       MODAL PARA CAMBIAR CLAVE
+  ====================================================== -->
+
+  <div
+    id="modalClave"
+    class="modal-fondo oculto"
+  >
+    <section class="modal modal-pequeno">
+      <header class="modal-header">
+        <h3>
+          Cambiar clave
+        </h3>
+
+        <button
+          class="cerrar-modal"
+          type="button"
+          onclick="cerrarModalClave()"
+          aria-label="Cerrar"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <div class="grupo">
+          <label for="claveActual">
+            Clave actual
+          </label>
+
+          <input
+            id="claveActual"
+            class="campo"
+            type="password"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <div class="grupo">
+          <label for="nuevaClave">
+            Nueva clave
+          </label>
+
+          <input
+            id="nuevaClave"
+            class="campo"
+            type="password"
+            autocomplete="new-password"
+          >
+        </div>
+
+        <div class="grupo">
+          <label for="confirmarClave">
+            Confirmar nueva clave
+          </label>
+
+          <input
+            id="confirmarClave"
+            class="campo"
+            type="password"
+            autocomplete="new-password"
+          >
+        </div>
+
+        <div
+          id="mensajeClave"
+          class="mensaje mensaje-error"
+        ></div>
+      </div>
+
+      <footer class="modal-footer">
+        <button
+          class="boton boton-secundario"
+          type="button"
+          onclick="cerrarModalClave()"
+        >
+          Cancelar
+        </button>
+
+        <button
+          id="guardarClave"
+          class="boton boton-principal"
+          type="button"
+        >
+          Guardar clave
+        </button>
+      </footer>
+    </section>
+  </div>
+
+
+  <!-- MODAL DE ADMINISTRACIÓN DE USUARIOS -->
+  <?!= incluir('Usuarios'); ?>
+
+  <!-- =====================================================
+       FUNCIONES JAVASCRIPT
+
+       V11 centraliza las mejoras en SistemaV11UI.
+       NO cargar los parches viejos de dashboard/asignación:
+       - AjusteCargaDashboardUI
+       - DashboardDynamicV8UI
+       - DashboardInicioRapidoV9UI
+       - AsignacionAutomaticaV10UI
+  ====================================================== -->
+  <?!= incluir('Scripts'); ?>
+  <?!= incluir('AjustesFinalesUI'); ?>
+  <?!= incluir('AjustesVistaUI'); ?>
+  <?!= incluir('AjusteCierreDashboardUI'); ?>
+  <?!= incluir('SistemaV11UI'); ?>
+
+</body>
+</html>
