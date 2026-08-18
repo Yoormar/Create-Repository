@@ -1,0 +1,29 @@
+<!-- MODAL USUARIOS -->
+  <div id="modalUsuarios" class="modal-fondo oculto">
+    <section class="modal">
+      <header class="modal-header">
+        <h3>Administrar usuarios</h3>
+        <button class="cerrar-modal" type="button" onclick="cerrarModalUsuarios()">×</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="tabla-wrap">
+          <table class="tabla-usuarios">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Responsable asignado</th>
+                <th>Activo</th>
+                <th>Último ingreso</th>
+                <th>Cambiar clave</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="cuerpoUsuarios"></tbody>
+          </table>
+        </div>
+
+        <div id="mensajeUsuarios" class="mensaje"></div>
+      </div>
+    </section>
+  </div>
