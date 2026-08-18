@@ -49,6 +49,7 @@
   color: #475569;
   font-size: 10px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .v12-auto-procesando {
@@ -62,6 +63,38 @@
 
 .barra-valor-dynamic {
   background: #7c3aed !important;
+}
+
+/*
+ * La fila original fue diseñada para cuatro controles.
+ * V12 tiene selector ticket, selector asesor, asignar,
+ * Automatico, contador Z/D y procesar pendientes.
+ */
+#siguienteAsesorDashboard .asignacion-controles {
+  grid-template-columns:
+    minmax(280px, 2fr)
+    minmax(220px, 1.4fr)
+    auto
+    auto
+    auto
+    auto !important;
+  align-items: center;
+}
+
+@media (max-width: 1250px) {
+  #siguienteAsesorDashboard .asignacion-controles {
+    grid-template-columns:
+      minmax(250px, 2fr)
+      minmax(200px, 1.4fr)
+      auto
+      auto !important;
+  }
+}
+
+@media (max-width: 760px) {
+  #siguienteAsesorDashboard .asignacion-controles {
+    grid-template-columns: 1fr !important;
+  }
 }
 </style>
 
@@ -92,6 +125,85 @@
     return String(estado?.sesion?.rol || '')
       .trim()
       .toUpperCase() === 'ADMIN';
+  }
+
+  function numeroDiarioV12(asesor) {
+    const valor = Number(
+      asesor?.asignadosHoy ??
+      asesor?.totalAtencionesHoy ??
+      0
+    );
+
+    return Number.isFinite(valor) && valor >= 0
+      ? valor
+      : 0;
+  }
+
+  /*
+   * El Scripts.html original convierte prioridad 0 en 1.
+   * Para la rotacion diaria V12, 0 debe seguir siendo 0.
+   */
+  function instalarPrioridadDiariaUIV12() {
+    window.obtenerPrioridadAsesorUI = function (asesor) {
+      return numeroDiarioV12(asesor);
+    };
+
+    const anterior = window.pintarDisponibilidadAsesores;
+
+    if (
+      typeof anterior === 'function' &&
+      !anterior.__v12Diario
+    ) {
+      const nuevo = function (filas) {
+        const resultado = anterior.apply(this, arguments);
+
+        const porAsesor = new Map();
+
+        (filas || []).forEach(fila => {
+          porAsesor.set(
+            String(fila?.asesor || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .trim()
+              .toUpperCase(),
+            fila
+          );
+        });
+
+        document
+          .querySelectorAll(
+            '#listaDisponibilidadAsesores .asesor-info'
+          )
+          .forEach(boton => {
+            const clave = String(boton.dataset.asesor || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .trim()
+              .toUpperCase();
+
+            const fila = porAsesor.get(clave);
+            const detalle = boton.querySelector('small');
+
+            if (!fila || !detalle) return;
+
+            const cantidad = numeroDiarioV12(fila);
+            const prioridad = cantidad;
+            const revision = Number(fila.revision || 0);
+            const seguimiento = Number(fila.seguimiento || 0);
+
+            detalle.textContent =
+              `${cantidad} ticket(s) hoy · ` +
+              `Prioridad ${prioridad} · ` +
+              `${revision} revisión · ` +
+              `${seguimiento} seguimiento`;
+          });
+
+        return resultado;
+      };
+
+      nuevo.__v12Diario = true;
+      window.pintarDisponibilidadAsesores = nuevo;
+    }
   }
 
   function filtrosV12() {
@@ -260,10 +372,6 @@
 
     control?.classList.toggle('v12-activo', activo);
 
-    /*
-     * Cuando Automatico esta activo ya no es necesario pulsar
-     * Actualizar dashboard para asignar pendientes.
-     */
     if (botonActualizarDashboard) {
       botonActualizarDashboard.style.display = activo ? 'none' : '';
     }
@@ -276,7 +384,6 @@
     proximaEjecucion = Date.now() + CICLO_MS;
     actualizarContadorV12();
 
-    /* Ejecuta una revision inmediatamente. */
     window.setTimeout(() => procesarPendientesV12UI(false), 250);
 
     temporizadorAuto = window.setInterval(() => {
@@ -325,6 +432,7 @@
     ultimaRespuesta = resultado;
     asegurarDynamicV12();
     asegurarAutomaticoV12();
+    instalarPrioridadDiariaUIV12();
 
     if (typeof setText === 'function') {
       setText('dashAtendidosDynamic', Number(resultado.atendidosDynamic || 0));
@@ -466,6 +574,19 @@
       });
   }
 
+  function vincularDisponibilidadV12() {
+    const contenedor = v12('listaDisponibilidadAsesores');
+    if (!contenedor || contenedor.dataset.v12Cambio === 'SI') return;
+
+    contenedor.dataset.v12Cambio = 'SI';
+
+    contenedor.addEventListener('change', evento => {
+      if (evento.target?.matches('.check-asignacion input')) {
+        window.setTimeout(refrescarOperativoV12, 700);
+      }
+    });
+  }
+
   function envolverPintadoV12() {
     const anterior = window.pintarDashboard;
 
@@ -487,17 +608,21 @@
   }
 
   function iniciarV12() {
+    instalarPrioridadDiariaUIV12();
     asegurarDynamicV12();
     asegurarAutomaticoV12();
     vincularFiltrosV12();
+    vincularDisponibilidadV12();
     envolverPintadoV12();
 
     const esperarSesion = window.setInterval(() => {
       if (!estado?.sesion) return;
 
+      instalarPrioridadDiariaUIV12();
       asegurarDynamicV12();
       asegurarAutomaticoV12();
       vincularFiltrosV12();
+      vincularDisponibilidadV12();
 
       if (esAdminV12()) {
         refrescarOperativoV12();
