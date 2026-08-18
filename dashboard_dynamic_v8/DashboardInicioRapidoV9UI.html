@@ -1,22 +1,28 @@
 <style>
 /* =========================================================
-   DASHBOARD INICIO RAPIDO V9 UI
-   Muestra la estructura existente mientras termina la carga completa.
+   DASHBOARD INICIO RAPIDO V9.1 UI
+   La estructura se muestra siempre; el dashboard completo
+   se actualiza despues, sin bloquear la pantalla.
 ========================================================= */
+
 #vistaDashboardAdmin.cargando-dashboard-real-ui {
+  position: relative !important;
   min-height: 0 !important;
 }
 
-#vistaDashboardAdmin.cargando-dashboard-real-ui > :not(#cargadorDashboardRealUI) {
+#vistaDashboardAdmin.cargando-dashboard-real-ui
+> :not(#cargadorDashboardRealUI) {
   display: revert !important;
 }
 
-#cargadorDashboardRealUI {
+#cargadorDashboardRealUI,
+#vistaDashboardAdmin.cargando-dashboard-real-ui
+> #cargadorDashboardRealUI {
   display: none !important;
 }
 
 .dashboard-inicio-v9-cargando::after {
-  content: 'Actualizando datos completos...';
+  content: 'Actualizando datos en segundo plano...';
   position: fixed;
   right: 22px;
   bottom: 22px;
@@ -35,40 +41,58 @@
 (function () {
   'use strict';
 
-  if (window.__DASHBOARD_INICIO_RAPIDO_V9_UI__) {
+  if (window.__DASHBOARD_INICIO_RAPIDO_V91_UI__) {
     return;
   }
 
-  window.__DASHBOARD_INICIO_RAPIDO_V9_UI__ = true;
+  window.__DASHBOARD_INICIO_RAPIDO_V91_UI__ = true;
 
-  let cargandoRapidoV9 = false;
-  let numeroSolicitudV9 = 0;
+  let cargandoRapido = false;
+  let solicitudRapida = 0;
+  let temporizadorCompleto = null;
+  let ultimaClave = '';
 
-  function d(id) {
+  function el(id) {
     return document.getElementById(id);
   }
 
-  function filtrosV9() {
+  function filtros() {
     if (typeof obtenerFiltrosDashboard === 'function') {
       return obtenerFiltrosDashboard();
     }
 
     return {
-      mes: d('dashMes')?.value || '',
-      anio: d('dashAnio')?.value || '',
-      plataforma: d('dashPlataforma')?.value || '',
-      asesor: d('dashAsesor')?.value || '__GLOBAL__'
+      mes: el('dashMes')?.value || '',
+      anio: el('dashAnio')?.value || '',
+      plataforma: el('dashPlataforma')?.value || '',
+      asesor: el('dashAsesor')?.value || '__GLOBAL__'
     };
   }
 
-  function pintarRapidoV9(datos) {
-    if (!datos || !datos.ok) {
-      return;
+  function claveFiltros() {
+    return JSON.stringify(filtros());
+  }
+
+  function desbloquearVisual() {
+    const panel = el('vistaDashboardAdmin');
+    if (!panel) return;
+
+    panel.classList.remove('cargando-dashboard-real-ui');
+    panel.classList.remove('dashboard-esperando-ui');
+    panel.setAttribute('aria-busy', 'false');
+
+    const cargador = el('cargadorDashboardRealUI');
+    if (cargador) {
+      cargador.style.display = 'none';
     }
+  }
+
+  function pintarRapido(datos) {
+    if (!datos || !datos.ok) return;
 
     const r = datos.resumenGeneral || {};
     const a = datos.asesor || {};
-    const e = a.estados || {};
+    const estados = a.estados || {};
     const p = a.plataforma || {};
 
     if (typeof setText === 'function') {
@@ -82,12 +106,12 @@
       setText('dashActivosAsesor', Number(a.activos || 0));
       setText('dashAtendidosAsesor', Number(a.atendidos || 0));
 
-      setText('dashEstadoRevision', Number(e.enRevision || 0));
-      setText('dashEstadoPendiente', Number(e.pendiente || 0));
-      setText('dashEstadoEspera', Number(e.enEspera || 0));
-      setText('dashEstadoSeguimiento', Number(e.seguimiento || 0));
-      setText('dashEstadoDerivado', Number(e.derivado || 0));
-      setText('dashEstadoAtendido', Number(e.atendido || 0));
+      setText('dashEstadoRevision', Number(estados.enRevision || 0));
+      setText('dashEstadoPendiente', Number(estados.pendiente || 0));
+      setText('dashEstadoEspera', Number(estados.enEspera || 0));
+      setText('dashEstadoSeguimiento', Number(estados.seguimiento || 0));
+      setText('dashEstadoDerivado', Number(estados.derivado || 0));
+      setText('dashEstadoAtendido', Number(estados.atendido || 0));
 
       setText('dashAsesorZendesk', Number(p.zendesk || 0));
       setText('dashAsesorPortal', Number(p.portal || 0));
@@ -101,91 +125,117 @@
       1
     );
 
-    const barraZ = d('barraAsesorZendesk');
-    const barraP = d('barraAsesorPortal');
-    const barraD = d('barraAsesorDynamic');
+    const barraZ = el('barraAsesorZendesk');
+    const barraP = el('barraAsesorPortal');
+    const barraD = el('barraAsesorDynamic');
 
     if (barraZ) barraZ.style.width = `${Number(p.zendesk || 0) / maximo * 100}%`;
     if (barraP) barraP.style.width = `${Number(p.portal || 0) / maximo * 100}%`;
     if (barraD) barraD.style.width = `${Number(p.dynamic || 0) / maximo * 100}%`;
 
-    const panel = d('vistaDashboardAdmin');
-    if (panel) {
-      panel.classList.remove('cargando-dashboard-real-ui');
-      panel.classList.remove('dashboard-esperando-ui');
-      panel.setAttribute('aria-busy', 'false');
-    }
+    desbloquearVisual();
   }
 
-  function cargarInicioRapidoV9() {
-    if (estado?.sesion?.rol !== 'ADMIN' || cargandoRapidoV9) {
+  function programarCompleto() {
+    window.clearTimeout(temporizadorCompleto);
+
+    temporizadorCompleto = window.setTimeout(() => {
+      if (
+        estado?.sesion?.rol !== 'ADMIN' ||
+        estado?.vistaActual !== 'dashboard'
+      ) {
+        return;
+      }
+
+      const panel = el('vistaDashboardAdmin');
+      panel?.classList.add('dashboard-inicio-v9-cargando');
+
+      if (typeof window.cargarDashboardCompleto === 'function') {
+        window.cargarDashboardCompleto();
+      }
+
+      window.setTimeout(() => {
+        desbloquearVisual();
+        panel?.classList.remove('dashboard-inicio-v9-cargando');
+      }, 12000);
+    }, 900);
+  }
+
+  function cargarRapido(forzarCompleto) {
+    if (estado?.sesion?.rol !== 'ADMIN') {
       return;
     }
 
-    cargandoRapidoV9 = true;
-    const solicitud = ++numeroSolicitudV9;
+    desbloquearVisual();
+
+    if (forzarCompleto === true) {
+      if (typeof window.cargarDashboardCompleto === 'function') {
+        window.cargarDashboardCompleto();
+        window.setTimeout(desbloquearVisual, 0);
+      }
+      return;
+    }
+
+    const clave = claveFiltros();
+
+    if (cargandoRapido && clave === ultimaClave) {
+      return;
+    }
+
+    ultimaClave = clave;
+    cargandoRapido = true;
+    const solicitud = ++solicitudRapida;
 
     google.script.run
       .withSuccessHandler(resultado => {
-        if (solicitud !== numeroSolicitudV9) return;
-        cargandoRapidoV9 = false;
-        pintarRapidoV9(resultado);
+        if (solicitud !== solicitudRapida) return;
+
+        cargandoRapido = false;
+        pintarRapido(resultado);
+
+        /*
+         * Recién después de mostrar los KPI y estados
+         * se lanza el dashboard pesado en segundo plano.
+         */
+        programarCompleto();
       })
       .withFailureHandler(() => {
-        if (solicitud === numeroSolicitudV9) {
-          cargandoRapidoV9 = false;
-        }
+        if (solicitud !== solicitudRapida) return;
+
+        cargandoRapido = false;
+        desbloquearVisual();
+
+        /* Si la rápida falla, conserva como respaldo la carga completa. */
+        programarCompleto();
       })
       .obtenerDashboardInicioRapidoV9(
         estado.token,
-        filtrosV9()
+        filtros()
       );
   }
 
-  function quitarBloqueoVisualV9() {
-    const panel = d('vistaDashboardAdmin');
-    if (!panel) return;
-
-    panel.classList.remove('cargando-dashboard-real-ui');
-    panel.classList.remove('dashboard-esperando-ui');
-    panel.setAttribute('aria-busy', 'false');
-  }
-
-  function envolverCargaDashboardV9() {
-    const anterior = window.cargarDashboardAdmin;
-
-    if (typeof anterior !== 'function' || anterior.__inicioRapidoV9) {
-      return;
-    }
-
-    const nueva = function () {
-      quitarBloqueoVisualV9();
-      cargarInicioRapidoV9();
-
-      const panel = d('vistaDashboardAdmin');
-      panel?.classList.add('dashboard-inicio-v9-cargando');
-
-      const resultado = anterior.apply(this, arguments);
-
-      window.setTimeout(() => {
-        panel?.classList.remove('dashboard-inicio-v9-cargando');
-      }, 12000);
-
-      return resultado;
+  function instalarCargaPrincipal() {
+    /*
+     * IMPORTANTE:
+     * Ya NO se ejecuta la función pesada anterior aquí.
+     * Las llamadas normales pasan primero por el servicio rápido.
+     */
+    const nueva = function (forzarCompleto) {
+      return cargarRapido(forzarCompleto === true);
     };
 
-    nueva.__inicioRapidoV9 = true;
+    nueva.__inicioRapidoV91 = true;
     window.cargarDashboardAdmin = nueva;
   }
 
-  function observarPanelV9() {
-    const panel = d('vistaDashboardAdmin');
+  function observarPanel() {
+    const panel = el('vistaDashboardAdmin');
     if (!panel) return;
 
-    quitarBloqueoVisualV9();
+    desbloquearVisual();
 
     const observer = new MutationObserver(() => {
-      quitarBloqueoVisualV9();
+      desbloquearVisual();
     });
 
     observer.observe(panel, {
@@ -194,25 +244,24 @@
     });
   }
 
-  function iniciarV9() {
-    observarPanelV9();
-    envolverCargaDashboardV9();
+  function iniciar() {
+    observarPanel();
+    instalarCargaPrincipal();
 
     window.setTimeout(() => {
       if (
         estado?.sesion?.rol === 'ADMIN' &&
         estado?.vistaActual === 'dashboard'
       ) {
-        quitarBloqueoVisualV9();
-        cargarInicioRapidoV9();
+        cargarRapido(false);
       }
     }, 50);
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciarV9);
+    document.addEventListener('DOMContentLoaded', iniciar);
   } else {
-    iniciarV9();
+    iniciar();
   }
 })();
 </script>
