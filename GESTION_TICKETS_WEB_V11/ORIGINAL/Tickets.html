@@ -1,0 +1,453 @@
+<div id="vistaBandeja">
+  <section class="tarjetas">
+    <article class="tarjeta">
+      <span>Total</span>
+      <strong id="kpiTotal">0</strong>
+    </article>
+
+    <article class="tarjeta">
+      <span>En revisión</span>
+      <strong id="kpiRevision">0</strong>
+    </article>
+
+    <article class="tarjeta">
+      <span>Pendiente</span>
+      <strong id="kpiPendiente">0</strong>
+    </article>
+
+    <article class="tarjeta">
+      <span>En espera</span>
+      <strong id="kpiEspera">0</strong>
+    </article>
+
+    <article class="tarjeta">
+      <span>Seguimiento</span>
+      <strong id="kpiSeguimiento">0</strong>
+    </article>
+
+    <article class="tarjeta">
+      <span>Atendido</span>
+      <strong id="kpiAtendido">0</strong>
+    </article>
+  </section>
+
+  <section class="panel">
+    <div class="filtros">
+      <input
+        id="filtroBuscar"
+        class="campo"
+        type="text"
+        autocomplete="off"
+        placeholder="Buscar N°, ticket, DNI, alumno o campus"
+      >
+
+      <select id="filtroResponsable" class="campo">
+        <option value="">Todos los responsables</option>
+      </select>
+
+      <select id="filtroOrigen" class="campo">
+        <option value="">Todos los orígenes</option>
+        <option value="PORTAL">PORTAL</option>
+        <option value="ZENDESK">ZENDESK</option>
+      </select>
+
+      <select id="filtroDetalle" class="campo">
+        <option value="">Todos los detalles</option>
+      </select>
+
+      <select id="ordenTickets" class="campo">
+        <option value="numero_desc">
+          N° mayor a menor
+        </option>
+
+        <option value="numero_asc">
+          N° menor a mayor
+        </option>
+
+        <option value="registro_desc">
+          Más reciente
+        </option>
+
+        <option value="registro_asc">
+          Más antiguo
+        </option>
+
+        <option value="asesor_asc">
+          Asesor A-Z
+        </option>
+
+        <option value="campus_asc">
+          Campus A-Z
+        </option>
+      </select>
+
+      <button
+        id="botonFiltrar"
+        class="boton boton-secundario"
+        type="button"
+      >
+        Filtrar
+      </button>
+
+      <button
+        id="botonLimpiarFiltros"
+        class="boton boton-secundario"
+        type="button"
+      >
+        Limpiar
+      </button>
+    </div>
+
+    <div
+      id="panelesTickets"
+      class="paneles-tickets"
+    ></div>
+
+    <div
+      id="tablaTicketsOriginal"
+      class="tabla-wrap oculto"
+    >
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Ticket</th>
+            <th>Tipo ticket</th>
+            <th>DNI</th>
+            <th>Alumno</th>
+            <th>Origen</th>
+            <th>Responsable</th>
+            <th>Campus</th>
+            <th>Detalle</th>
+            <th>Estado</th>
+            <th>Registro</th>
+            <th>Ticket Portal</th>
+            <th>Alerta</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+
+        <tbody id="cuerpoTabla">
+          <tr>
+            <td
+              colspan="14"
+              class="cargando-tabla"
+            >
+              Cargando tickets...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- MODAL DE TICKET -->
+<div
+  id="modalTicket"
+  class="modal-fondo oculto"
+>
+  <section class="modal">
+    <header class="modal-header">
+      <div>
+        <h3 id="tituloModalTicket">
+          Editar ticket
+        </h3>
+
+        <div
+          id="subtituloModalTicket"
+          class="texto-secundario"
+        ></div>
+      </div>
+
+      <button
+        class="cerrar-modal"
+        type="button"
+        aria-label="Cerrar"
+        onclick="cerrarModalTicket()"
+      >
+        ×
+      </button>
+    </header>
+
+    <div class="modal-body">
+      <div class="grid-datos">
+        <div class="grupo">
+          <label>N°</label>
+
+          <div
+            id="editNumero"
+            class="dato-lectura"
+          ></div>
+        </div>
+
+        <div class="grupo">
+          <label>Ticket</label>
+
+          <div
+            id="editTicket"
+            class="dato-lectura"
+          ></div>
+        </div>
+
+        <div class="grupo">
+          <label>Tipo de ticket</label>
+
+          <div
+            id="editTipoTicket"
+            class="dato-lectura"
+          >
+            -
+          </div>
+        </div>
+
+        <div
+          id="grupoTipoReevaluacion"
+          class="grupo oculto"
+        >
+          <label for="editTipoReevaluacion">
+            Tipo de reevaluación
+            <span class="campo-obligatorio">
+              *
+            </span>
+          </label>
+
+          <select
+            id="editTipoReevaluacion"
+            class="campo"
+          >
+            <option value="">
+              Seleccionar
+            </option>
+
+            <option value="Inconformidad Tabla">
+              Inconformidad Tabla
+            </option>
+
+            <option value="Inconformidad Evaluación">
+              Inconformidad Evaluación
+            </option>
+
+            <option value="Cambio de Modalidad">
+              Cambio de Modalidad
+            </option>
+
+            <option value="Cambio de Carrera">
+              Cambio de Carrera
+            </option>
+          </select>
+        </div>
+
+        <div class="grupo">
+          <label for="editDni">
+            DNI
+          </label>
+
+          <input
+            id="editDni"
+            class="campo"
+            type="text"
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="grupo">
+          <label for="editAlumno">
+            Alumno
+          </label>
+
+          <input
+            id="editAlumno"
+            class="campo"
+            type="text"
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="grupo">
+          <label>Origen</label>
+
+          <div
+            id="editOrigen"
+            class="dato-lectura"
+          >
+            -
+          </div>
+        </div>
+
+        <div class="grupo">
+          <label for="editResponsable">
+            Responsable
+          </label>
+
+          <select
+            id="editResponsable"
+            class="campo"
+          ></select>
+        </div>
+
+        <div class="grupo">
+          <label for="editCampus">
+            Campus
+            <span class="campo-obligatorio">
+              *
+            </span>
+          </label>
+
+          <select
+            id="editCampus"
+            class="campo"
+          ></select>
+        </div>
+
+        <div class="grupo">
+          <label for="editTipoIngreso">
+            Tipo de ingreso
+            <span class="campo-obligatorio">
+              *
+            </span>
+          </label>
+
+          <select
+            id="editTipoIngreso"
+            class="campo"
+          ></select>
+        </div>
+
+        <div class="grupo">
+          <label for="editTipoConvalidacion">
+            Tipo de convalidación
+            <span class="campo-obligatorio">
+              *
+            </span>
+          </label>
+
+          <select
+            id="editTipoConvalidacion"
+            class="campo"
+          ></select>
+        </div>
+
+        <div class="grupo">
+          <label for="editDetalle">
+            Detalle
+          </label>
+
+          <select
+            id="editDetalle"
+            class="campo"
+          ></select>
+        </div>
+
+        <div class="grupo ancho-completo">
+          <label for="editObservacion">
+            Observación
+          </label>
+
+          <textarea
+            id="editObservacion"
+            class="campo"
+            maxlength="3000"
+          ></textarea>
+        </div>
+      </div>
+
+      <hr class="separador">
+
+      <div class="resumen-ticket">
+        <div class="mini-tarjeta">
+          <span>Registro</span>
+
+          <strong id="infoRegistro">
+            -
+          </strong>
+        </div>
+
+        <div class="mini-tarjeta">
+          <span>Tiempo inicio</span>
+
+          <strong id="infoTiempoInicio">
+            -
+          </strong>
+        </div>
+
+        <div class="mini-tarjeta">
+          <span>Tiempo fin</span>
+
+          <strong id="infoTiempoFin">
+            -
+          </strong>
+        </div>
+
+        <div class="mini-tarjeta mini-tarjeta-portal">
+          <span>Tengo ticket Portal</span>
+
+          <strong
+            id="infoTicketPortal"
+            class="estado-ticket-portal"
+          >
+            -
+          </strong>
+        </div>
+
+        <div class="mini-tarjeta">
+          <span>N° cambios</span>
+
+          <strong id="infoCambios">
+            0
+          </strong>
+        </div>
+
+        <div class="mini-tarjeta">
+          <span>Última modificación</span>
+
+          <strong id="infoUltimoUsuario">
+            -
+          </strong>
+        </div>
+      </div>
+
+      <div
+        id="mensajeTicket"
+        class="mensaje"
+      ></div>
+    </div>
+
+    <footer class="modal-footer">
+      <button
+        class="boton boton-secundario"
+        type="button"
+        onclick="cerrarModalTicket()"
+      >
+        Cancelar
+      </button>
+
+      <button
+        id="botonReportarPortal"
+        class="boton boton-reporte-portal oculto"
+        type="button"
+        onclick="reportarTicketPortalActual()"
+      >
+        Reportar ticket Portal
+      </button>
+
+      <button
+        id="botonGuardarTicket"
+        class="boton boton-principal"
+        type="button"
+        onclick="guardarTicketActual()"
+      >
+        Guardar cambios
+      </button>
+
+      <button
+        id="botonFinalizarTicket"
+        class="boton boton-verde oculto"
+        type="button"
+        onclick="finalizarTicketActual()"
+      >
+        Finalizar
+      </button>
+    </footer>
+  </section>
+</div>
