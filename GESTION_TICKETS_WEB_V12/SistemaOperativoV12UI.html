@@ -175,6 +175,7 @@
 
             const fila = porAsesor.get(clave);
             const detalle = boton.querySelector('small');
+            const estadoVisual = boton.querySelector('em');
 
             if (!fila || !detalle) return;
 
@@ -188,6 +189,19 @@
               `Prioridad ${prioridad} · ` +
               `${revision} revisión · ` +
               `${seguimiento} seguimiento`;
+
+            /*
+             * La función original también imprime la prioridad en
+             * la línea de estado. Se sincroniza después del pintado
+             * para evitar que conserve el límite histórico de 5.
+             */
+            if (
+              estadoVisual &&
+              /^Disponible\b/i.test(estadoVisual.textContent || '')
+            ) {
+              estadoVisual.textContent =
+                `Disponible · Prioridad ${prioridad}`;
+            }
           });
 
         return resultado;
