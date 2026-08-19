@@ -7,7 +7,7 @@
    - ESTADO TICKET CERRADO tampoco cuenta como recibido
    - SEGUIMIENTO no suma prioridad, solo informa disponibilidad
    - Evita contar como "hoy" tickets historicos cuyo FECHA INICIO
-     fue rellenado posteriormente, validando el inicio real del ticket
+     fue rellenado posteriormente, exigiendo evidencia real de inicio
    - Orden de asignacion: menor prioridad diaria primero
    - Asignacion automatica ZENDESK + DYNAMIC
    - Dashboard superior sincronizado
@@ -53,20 +53,19 @@ function v12CuentaPorFechaInicio_(detalle) {
 /*
  * FECHA INICIO sigue siendo la regla principal.
  *
- * Sin embargo, algunas filas historicas quedaron con FECHA INICIO
- * rellenada posteriormente desde REGISTRO. Eso hacia que un asesor
- * con decenas de tickets antiguos apareciera como si hubiese recibido
- * todos esos tickets hoy.
+ * El problema detectado en BASE_TICKETS es que filas historicas
+ * recibieron FECHA INICIO = hoy al ser editadas/importadas en bloque.
+ * Por eso no basta con preguntar si FECHA INICIO es hoy.
  *
- * Para evitar ese falso positivo:
+ * Regla anti-contaminacion:
  * - FECHA INICIO debe ser hoy.
- * - Si existe TIEMPO INICIO y pertenece a un dia anterior,
- *   el ticket es historico y no se cuenta como recibido hoy.
- * - Si no existe TIEMPO INICIO, se usa FECHA ACTUALIZACION como
- *   comprobacion secundaria. Si tambien es anterior, no cuenta.
+ * - Si existe TIEMPO INICIO, tambien debe ser hoy.
+ * - Si no existe TIEMPO INICIO, FECHA ACTUALIZACION debe ser hoy.
+ * - Si no existe ninguna evidencia real de inicio/actualizacion hoy,
+ *   NO se cuenta aunque FECHA INICIO haya sido rellenada con hoy.
  *
- * TIEMPO INICIO NO reemplaza a FECHA INICIO como regla de prioridad;
- * solo evita contabilizar un FECHA INICIO contaminado/historico.
+ * TIEMPO INICIO no sustituye FECHA INICIO como regla de prioridad;
+ * solamente confirma que la fila realmente entro a operacion hoy.
  */
 function v12FechaInicioValidaHoy_(ticket, hoy) {
   const fechaInicio =
@@ -88,28 +87,16 @@ function v12FechaInicioValidaHoy_(ticket, hoy) {
   const claveTiempoInicio =
     claveFecha(tiempoInicio);
 
-  if (
-    claveTiempoInicio &&
-    claveTiempoInicio !== hoy
-  ) {
-    return false;
+  if (claveTiempoInicio) {
+    return claveTiempoInicio === hoy;
   }
 
-  if (!claveTiempoInicio) {
-    const claveActualizacion =
-      claveFecha(
-        ticket && ticket.fechaActualizacion
-      );
+  const claveActualizacion =
+    claveFecha(
+      ticket && ticket.fechaActualizacion
+    );
 
-    if (
-      claveActualizacion &&
-      claveActualizacion !== hoy
-    ) {
-      return false;
-    }
-  }
-
-  return true;
+  return claveActualizacion === hoy;
 }
 
 /* =========================================================
@@ -130,9 +117,9 @@ function v12FechaInicioValidaHoy_(ticket, hoy) {
       y cualquier otro detalle operativo
       Cuenta solamente si FECHA INICIO es hoy.
 
-   5. Si FECHA INICIO fue rellenada posteriormente en un ticket
-      historico, se descarta usando TIEMPO INICIO / FECHA ACTUALIZACION
-      solamente como validacion anti-contaminacion.
+   5. FECHA INICIO debe tener evidencia real del dia:
+      TIEMPO INICIO de hoy o, si no existe, FECHA ACTUALIZACION de hoy.
+      Esto evita contar filas historicas rellenadas masivamente.
 
    6. La hoja SEGUIMIENTO NO suma tickets al conteo.
       Solo sirve para disponibilidad/estado operativo.
@@ -183,7 +170,7 @@ function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
       return;
     }
 
-    /* Otros estados operativos: solamente FECHA INICIO. */
+    /* Otros estados operativos: FECHA INICIO validada. */
     if (!v12CuentaPorFechaInicio_(detalle)) {
       return;
     }
@@ -213,10 +200,6 @@ function calcularEstadoOperativoAsesorV12_(
   ticketsBase,
   seguimiento
 ) {
-  /*
-   * Conserva las reglas existentes de disponibilidad.
-   * V12 reemplaza exclusivamente el conteo/prioridad diaria.
-   */
   const estadoBase = calcularEstadoOperativoAsesor(
     usuario,
     ticketsBase,
@@ -355,11 +338,6 @@ function v12AsignarTicket_(base, ticket, asesor, usuarioEjecutor) {
     asesor
   );
 
-  /*
-   * FECHA INICIO representa el dia real en que el ticket entra
-   * a atencion/asignacion. Se registra directamente en V12 para
-   * no depender del rellenado masivo desde REGISTRO.
-   */
   const columnaFechaInicio =
     base.mapa[normalizar('Fecha inicio')];
 
@@ -396,10 +374,6 @@ function v12AsignarTicket_(base, ticket, asesor, usuarioEjecutor) {
       fechaInicioOperativa;
   }
 
-  /*
-   * TIEMPO INICIO se mantiene para medicion de tiempos.
-   * La prioridad NO usa este campo como fecha principal.
-   */
   if (!limpiar(ticket.tiempoInicio)) {
     escribirPorEncabezado_(
       base.hoja,
@@ -592,10 +566,6 @@ function obtenerDashboardOperativoV12(token, filtros) {
           normalizar(ticket.responsable) === normalizar(asesorFiltro)
         );
 
-    /*
-     * Los KPI de atendidos se calculan todos desde la MISMA
-     * lista y con los mismos filtros para evitar desfases.
-     */
     const atendidos = periodo.filter(ticket =>
       !esTicketActivoParaCarga_(ticket) &&
       V12_ORIGENES_DASHBOARD.includes(normalizar(ticket.origen))
@@ -672,7 +642,6 @@ function obtenerDashboardOperativoV12(token, filtros) {
         totalAtendidos
       },
 
-      /* Compatibilidad con versiones V12 anteriores. */
       atendidosDynamic,
       plataformaAsesor,
       disponibilidad,
