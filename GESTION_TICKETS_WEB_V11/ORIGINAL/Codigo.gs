@@ -1,5 +1,5 @@
-const SPREADSHEET_ID =
-  '1Y7X9h67QJC9cbzS59uKgr-DRGLzNVi9iczup8yrPSds';
+const SCRIPT_PROPERTY_SPREADSHEET_ID =
+  'SPREADSHEET_ID';
 
 const SHEET_USUARIOS = 'USUARIOS';
 const SHEET_BASE_TICKETS = 'BASE_TICKETS';
@@ -86,9 +86,29 @@ function limpiar(valor) {
 }
 
 
+function obtenerSpreadsheetId_() {
+  const spreadsheetId =
+    limpiar(
+      PropertiesService
+        .getScriptProperties()
+        .getProperty(
+          SCRIPT_PROPERTY_SPREADSHEET_ID
+        )
+    );
+
+  if (!spreadsheetId) {
+    throw new Error(
+      'Falta configurar la propiedad de script SPREADSHEET_ID.'
+    );
+  }
+
+  return spreadsheetId;
+}
+
+
 function obtenerArchivo() {
   return SpreadsheetApp.openById(
-    SPREADSHEET_ID
+    obtenerSpreadsheetId_()
   );
 }
 
@@ -3321,12 +3341,13 @@ REGLAS PRINCIPALES
    está atendiendo el ticket.
 
 3. PRIORIDAD DIARIA:
-   - Seguimiento o En espera:
-     cuenta usando FECHA ASIGNADO.
-   - Atendido:
-     cuenta usando FECHA FIN de BASE_TICKETS.
-   - Los demás estados no cuentan para prioridad.
+   - Atendido: cuenta por FECHA FIN de hoy.
+   - Derivado y Cerrado: no cuentan.
+   - Si ESTADO TICKET = CERRADO, no cuenta salvo ATENDIDO por FECHA FIN.
+   - Los demás estados operativos: cuentan por FECHA INICIO de hoy.
+   - SEGUIMIENTO solo informa disponibilidad; no suma otra vez.
    - Un ticket se cuenta una sola vez.
+   - Prioridad = cantidad real contabilizada hoy, sin tope.
 
 4. ASIGNACIÓN:
    - Primero disponibilidad.
@@ -4043,63 +4064,225 @@ function crearClaveTicketPrioridad_(
 ========================================================= */
 
 /*
- * El conteo diario se obtiene únicamente
- * desde BASE_TICKETS.
+ * FUENTE UNICA DE VERDAD PARA "RECIBIDOS HOY":
  *
- * REGLAS:
+ * - BASE_TICKETS conserva el estado actual del ticket.
+ * - HISTORIAL_ASIGNACIONES confirma una asignacion real.
+ * - FECHA INICIO define el dia operativo del ticket.
  *
- * 1. Atendido:
- *    FECHA FIN debe ser hoy.
- *
- * 2. Derivado:
- *    No cuenta.
- *
- * 3. Cerrado:
- *    No cuenta.
- *
- * 4. Cualquier otro detalle:
- *    FECHA INICIO debe ser hoy.
- *
- * PRIORIDAD:
- *
- * 0 tickets     = Prioridad 0
- * 1 ticket      = Prioridad 1
- * 2 tickets     = Prioridad 2
- * 3 tickets     = Prioridad 3
- * 4 tickets     = Prioridad 4
- * 5 o más       = Prioridad 5
+ * Esto evita contar como recibidos los registros historicos que
+ * fueron importados/editados hoy y recibieron FECHA INICIO en bloque.
  */
-function calcularConteoPrioridadHoy_(
+function leerHistorialAsignacionesPrioridad_() {
+  const hoja =
+    obtenerArchivo()
+      .getSheetByName(
+        'HISTORIAL_ASIGNACIONES'
+      );
+
+  if (
+    !hoja ||
+    hoja.getLastRow() < 2
+  ) {
+    return [];
+  }
+
+  const mapa =
+    obtenerMapaEncabezados(
+      hoja
+    );
+
+  const rango =
+    hoja.getRange(
+      2,
+      1,
+      hoja.getLastRow() - 1,
+      hoja.getLastColumn()
+    );
+
+  const display =
+    rango.getDisplayValues();
+
+  const valores =
+    rango.getValues();
+
+  return display
+    .map((fila, indice) => ({
+      fecha:
+        obtenerValorCrudoFila_(
+          valores[indice],
+          mapa,
+          'FECHA'
+        ) ||
+        obtenerValorFila(
+          fila,
+          mapa,
+          'FECHA'
+        ),
+
+      numero:
+        obtenerValorFila(
+          fila,
+          mapa,
+          'N°'
+        ),
+
+      ticket:
+        obtenerValorFila(
+          fila,
+          mapa,
+          'ID TICKET'
+        ),
+
+      asesor:
+        obtenerValorFila(
+          fila,
+          mapa,
+          'ASESOR'
+        ),
+
+      tipo:
+        obtenerValorFila(
+          fila,
+          mapa,
+          'TIPO'
+        )
+    }))
+    .filter(item =>
+      item.fecha &&
+      item.asesor &&
+      (
+        item.ticket ||
+        item.numero
+      )
+    );
+}
+
+
+function crearClaveHistorialPrioridad_(
+  item
+) {
+  const ticket =
+    limpiar(
+      item && item.ticket
+    );
+
+  if (ticket) {
+    return `T:${ticket}`;
+  }
+
+  const numero =
+    limpiar(
+      item && item.numero
+    );
+
+  return numero
+    ? `N:${numero}`
+    : '';
+}
+
+
+function obtenerAsignacionesRealesHoy_(
   nombreAsesor,
-  ticketsBase
+  historialPrecargado
 ) {
   const hoy =
     claveFecha(
       new Date()
     );
 
-  /*
-   * Tickets con estado diferente
-   * de Atendido que cuentan por
-   * FECHA INICIO.
-   */
+  const historial =
+    Array.isArray(
+      historialPrecargado
+    )
+      ? historialPrecargado
+      : leerHistorialAsignacionesPrioridad_();
+
+  const asignados =
+    new Set();
+
+  historial.forEach(item => {
+    if (
+      normalizar(
+        item.asesor
+      ) !==
+      normalizar(
+        nombreAsesor
+      )
+    ) {
+      return;
+    }
+
+    const fechaOperativa =
+      calcularFechaInicioOperativa_(
+        item.fecha
+      );
+
+    if (
+      claveFecha(
+        fechaOperativa
+      ) !== hoy
+    ) {
+      return;
+    }
+
+    const clave =
+      crearClaveHistorialPrioridad_(
+        item
+      );
+
+    if (clave) {
+      asignados.add(clave);
+    }
+  });
+
+  return asignados;
+}
+
+
+/*
+ * REGLAS:
+ *
+ * 1. ATENDIDO:
+ *    Cuenta por FECHA FIN = hoy.
+ *
+ * 2. DERIVADO / CERRADO / ESTADO TICKET CERRADO:
+ *    No cuentan como recibido.
+ *
+ * 3. Otros estados operativos:
+ *    - FECHA INICIO debe ser hoy.
+ *    - Debe existir una asignacion real de hoy en
+ *      HISTORIAL_ASIGNACIONES para ese mismo ticket y asesor.
+ *
+ * 4. SEGUIMIENTO:
+ *    La hoja SEGUIMIENTO no suma prioridad.
+ *
+ * 5. PRIORIDAD = total real contabilizado hoy, sin tope.
+ */
+function calcularConteoPrioridadHoy_(
+  nombreAsesor,
+  ticketsBase,
+  historialPrecargado
+) {
+  const hoy =
+    claveFecha(
+      new Date()
+    );
+
+  const asignacionesRealesHoy =
+    obtenerAsignacionesRealesHoy_(
+      nombreAsesor,
+      historialPrecargado
+    );
+
   const recibidosHoy =
     new Set();
 
-  /*
-   * Tickets Atendidos que cuentan
-   * por FECHA FIN.
-   */
   const atendidosHoy =
     new Set();
 
-
-  ticketsBase.forEach(
-    ticket => {
-      /*
-       * Solo se consideran los tickets
-       * asignados al asesor evaluado.
-       */
+  (ticketsBase || [])
+    .forEach(ticket => {
       if (
         normalizar(
           ticket.responsable
@@ -4116,6 +4299,11 @@ function calcularConteoPrioridadHoy_(
           ticket.detalle
         );
 
+      const estadoTicket =
+        normalizar(
+          ticket.estado
+        );
+
       const clave =
         crearClaveTicketPrioridad_(
           ticket
@@ -4125,14 +4313,9 @@ function calcularConteoPrioridadHoy_(
         return;
       }
 
-
-      /* ===================================================
-         ATENDIDO: UTILIZA FECHA FIN
-      =================================================== */
-
+      /* ATENDIDO: solo FECHA FIN. */
       if (
-        detalle ===
-        'ATENDIDO'
+        detalle === 'ATENDIDO'
       ) {
         const fechaFin =
           ticket.fechaFinRaw ||
@@ -4151,24 +4334,14 @@ function calcularConteoPrioridadHoy_(
         return;
       }
 
-
-      /* ===================================================
-         DERIVADO Y CERRADO: NO CUENTAN
-      =================================================== */
-
+      /* No cuentan. */
       if (
-        detalle ===
-          'DERIVADO' ||
-        detalle ===
-          'CERRADO'
+        detalle === 'DERIVADO' ||
+        detalle === 'CERRADO' ||
+        estadoTicket === 'CERRADO'
       ) {
         return;
       }
-
-
-      /* ===================================================
-         OTROS ESTADOS: UTILIZAN FECHA INICIO
-      =================================================== */
 
       if (
         !detalleCuentaComoRecibido_(
@@ -4182,23 +4355,30 @@ function calcularConteoPrioridadHoy_(
         ticket.fechaInicioRaw ||
         ticket.fechaInicio;
 
+      /* La regla solicitada exige FECHA INICIO del dia. */
       if (
         claveFecha(
           fechaInicio
-        ) === hoy
+        ) !== hoy
+      ) {
+        return;
+      }
+
+      /*
+       * Confirmacion de recepcion real.
+       * Sin una asignacion real registrada hoy, no suma prioridad.
+       */
+      if (
+        asignacionesRealesHoy.has(
+          clave
+        )
       ) {
         recibidosHoy.add(
           clave
         );
       }
-    }
-  );
+    });
 
-
-  /*
-   * Se unen ambos grupos para asegurar
-   * que ningún ticket sea contado dos veces.
-   */
   const totalUnico =
     new Set([
       ...recibidosHoy,
@@ -4208,15 +4388,6 @@ function calcularConteoPrioridadHoy_(
   const totalHoy =
     totalUnico.size;
 
-  /*
-   * La prioridad tiene un límite máximo de 5.
-   */
-  const prioridad =
-    Math.min(
-      totalHoy,
-      5
-    );
-
   return {
     recibidosHoy:
       recibidosHoy.size,
@@ -4224,9 +4395,16 @@ function calcularConteoPrioridadHoy_(
     atendidosHoy:
       atendidosHoy.size,
 
+    asignacionesRealesHoy:
+      asignacionesRealesHoy.size,
+
     totalHoy,
 
-    prioridad
+    prioridad:
+      totalHoy,
+
+    fuentePrioridad:
+      'BASE_TICKETS + HISTORIAL_ASIGNACIONES'
   };
 }
 
@@ -4238,27 +4416,16 @@ function calcularConteoPrioridadHoy_(
 function calcularEstadoOperativoAsesor(
   usuario,
   ticketsBase,
-  seguimiento
+  seguimiento,
+  historialAsignaciones
 ) {
   const nombre =
     usuario.asesor;
 
-
-  /* =====================================================
-     VALIDACIÓN EN BASE_TICKETS
-  ===================================================== */
-
-  /*
-   * En BASE_TICKETS únicamente bloquea:
-   *
-   * Detalle = En revisión.
-   *
-   * Esto significa que el asesor está
-   * atendiendo actualmente un ticket.
-   */
+  /* BASE_TICKETS: EN REVISION abierto bloquea. */
   const revisionBase =
-    ticketsBase.filter(
-      ticket =>
+    (ticketsBase || [])
+      .filter(ticket =>
         normalizar(
           ticket.responsable
         ) ===
@@ -4273,86 +4440,35 @@ function calcularEstadoOperativoAsesor(
           ticket.estado
         ) !==
           'CERRADO'
-    );
+      );
 
-
-  /* =====================================================
-     VALIDACIÓN EN SEGUIMIENTO
-  ===================================================== */
-
-  /*
-   * leerSeguimientoOperativo_ ya devuelve
-   * solamente la última fila de cada ticket.
-   *
-   * Se revisa:
-   *
-   * - Responsable actual de la columna G.
-   * - Detalle actual de la columna H.
-   */
+  /* SEGUIMIENTO informa disponibilidad; no suma prioridad. */
   const seguimientoAsesor =
-    seguimiento.filter(
-      item =>
+    (seguimiento || [])
+      .filter(item =>
         normalizar(
           item.responsableActual
         ) ===
         normalizar(
           nombre
         )
-    );
+      );
 
-  /*
-   * El asesor no estará disponible cuando
-   * en su última fila de SEGUIMIENTO exista:
-   *
-   * - Seguimiento
-   * - Derivado
-   * - Atendido
-   * - Cerrado
-   *
-   * En espera NO bloquea.
-   * En revisión NO bloquea desde esta hoja.
-   * Pendiente NO bloquea.
-   */
   const seguimientoBloqueante =
-    seguimientoAsesor.filter(
-      item =>
+    seguimientoAsesor
+      .filter(item =>
         detalleBloqueaDisponibilidad_(
           item.detalle
         )
-    );
+      );
 
-
-  /* =====================================================
-     CONTEO Y PRIORIDAD DEL DÍA
-  ===================================================== */
-
-  /*
-   * El conteo se realiza únicamente
-   * con BASE_TICKETS.
-   *
-   * La hoja SEGUIMIENTO no interviene
-   * en el conteo de tickets diarios.
-   */
   const conteoHoy =
     calcularConteoPrioridadHoy_(
       nombre,
-      ticketsBase
+      ticketsBase,
+      historialAsignaciones
     );
 
-
-  /* =====================================================
-     DISPONIBILIDAD FINAL
-  ===================================================== */
-
-  /*
-   * Para estar disponible debe cumplir:
-   *
-   * - Usuario activo.
-   * - Asignación habilitada.
-   * - No tener En revisión en BASE_TICKETS.
-   * - No tener un estado bloqueante
-   *   en la última fila de SEGUIMIENTO.
-   */
   const disponible =
     usuario.activo &&
     usuario.habilitado &&
@@ -4363,317 +4479,6 @@ function calcularEstadoOperativoAsesor(
     'disponible';
 
   let texto =
-    (
-      `Disponible · ` +
-      `Prioridad ${conteoHoy.prioridad}`
-    );
-
-  let motivo =
-    (
-      `${conteoHoy.totalHoy} ticket(s) ` +
-      `contabilizado(s) hoy`
-    );
-
-
-  /* =====================================================
-     MOTIVOS DE NO DISPONIBILIDAD
-  ===================================================== */
-
-  if (!usuario.activo) {
-    nivel =
-      'bloqueado';
-
-    texto =
-      'Usuario inactivo';
-
-    motivo =
-      'El usuario no está activo';
-
-  } else if (
-    !usuario.habilitado
-  ) {
-    nivel =
-      'bloqueado';
-
-    texto =
-      'No participa';
-
-    motivo =
-      'Asignación deshabilitada';
-
-  } else if (
-    revisionBase.length > 0
-  ) {
-    nivel =
-      'ocupado';
-
-    texto =
-      'En revisión atendiendo';
-
-    motivo =
-      (
-        `${revisionBase.length} ticket(s) ` +
-        `En revisión en BASE_TICKETS`
-      );
-
-  } else if (
-    seguimientoBloqueante.length > 0
-  ) {
-    nivel =
-      'ocupado';
-
-    const detalles =
-      [
-        ...new Set(
-          seguimientoBloqueante.map(
-            item =>
-              normalizar(
-                item.detalle
-              )
-          )
-        )
-      ];
-
-    /*
-     * Se muestra el principal motivo
-     * por el que está bloqueado.
-     */
-    if (
-      detalles.includes(
-        'SEGUIMIENTO'
-      )
-    ) {
-      texto =
-        'En seguimiento';
-
-    } else if (
-      detalles.includes(
-        'DERIVADO'
-      )
-    ) {
-      texto =
-        'Derivado en bandeja';
-
-    } else if (
-      detalles.includes(
-        'ATENDIDO'
-      )
-    ) {
-      texto =
-        'Atendido en bandeja';
-
-    } else if (
-      detalles.includes(
-        'CERRADO'
-      )
-    ) {
-      texto =
-        'Cerrado en bandeja';
-
-    } else {
-      texto =
-        'No disponible';
-    }
-
-    motivo =
-      (
-        `${seguimientoBloqueante.length} ` +
-        `ticket(s) bloqueante(s) ` +
-        `en SEGUIMIENTO`
-      );
-  }
-
-
-  /* =====================================================
-     TICKETS QUE CAUSAN EL BLOQUEO
-  ===================================================== */
-
-  const ticketsAfectados = [
-    ...revisionBase.map(
-      ticket => ({
-        fuente:
-          'BASE_TICKETS',
-
-        numero:
-          ticket.numero,
-
-        ticket:
-          ticket.ticket,
-
-        alumno:
-          ticket.alumno,
-
-        detalle:
-          ticket.detalle,
-
-        responsable:
-          ticket.responsable
-      })
-    ),
-
-    ...seguimientoBloqueante.map(
-      item => ({
-        fuente:
-          'SEGUIMIENTO',
-
-        numero:
-          '',
-
-        ticket:
-          item.ticket,
-
-        alumno:
-          item.alumno,
-
-        detalle:
-          item.detalle,
-
-        responsable:
-          item.responsableActual
-      })
-    )
-  ];
-
-
-  /* =====================================================
-     RESULTADO FINAL
-  ===================================================== */
-
-  return {
-    usuario:
-      usuario.usuario,
-
-    asesor:
-      nombre,
-
-    activo:
-      usuario.activo,
-
-    habilitado:
-      usuario.habilitado,
-
-    disponible,
-
-    /*
-     * Cantidad real de tickets contabilizados hoy.
-     * Puede ser mayor de cinco.
-     */
-    totalAtencionesHoy:
-      conteoHoy.totalHoy,
-
-    /*
-     * seleccionarSiguienteAsesor utiliza
-     * asignadosHoy para decidir quién recibe
-     * el siguiente ticket.
-     *
-     * Aquí se envía la prioridad limitada
-     * entre 0 y 5.
-     */
-    asignadosHoy:
-      conteoHoy.prioridad,
-
-    recibidosHoy:
-      conteoHoy.recibidosHoy,
-
-    atendidosHoy:
-      conteoHoy.atendidosHoy,
-
-    prioridad:
-      conteoHoy.prioridad,
-
-    /*
-     * Cantidades que bloquean actualmente
-     * la asignación.
-     */
-    revision:
-      revisionBase.length,
-
-    seguimiento:
-      seguimientoBloqueante.length,
-
-    nivel,
-    texto,
-    motivo,
-
-    orden:
-      usuario.orden,
-
-    ultimaAsignacion:
-      usuario.ultimaAsignacion,
-
-    ticketsAfectados
-  };
-}
-
-/* =========================================================
-   DISPONIBILIDAD DEL ASESOR
-========================================================= */
-
-function calcularEstadoOperativoAsesor(
-  usuario,
-  ticketsBase,
-  seguimiento
-) {
-  const nombre =
-    usuario.asesor;
-
-  /*
-   * BASE_TICKETS:
-   * únicamente En revisión bloquea
-   * la disponibilidad.
-   */
-  const revisionBase =
-    ticketsBase.filter(ticket =>
-      normalizar(
-        ticket.responsable
-      ) ===
-        normalizar(nombre) &&
-      normalizar(
-        ticket.detalle
-      ) ===
-        'EN REVISION' &&
-      normalizar(
-        ticket.estado
-      ) !==
-        'CERRADO'
-    );
-
-  /*
-   * SEGUIMIENTO:
-   *
-   * G = responsable actual.
-   * H = detalle.
-   */
-  const seguimientoAsesor =
-    seguimiento.filter(item =>
-      normalizar(
-        item.responsableActual
-      ) ===
-      normalizar(nombre)
-    );
-
-  const seguimientoBloqueante =
-    seguimientoAsesor.filter(item =>
-      detalleBloqueaDisponibilidad_(
-        item.detalle
-      )
-    );
-
-  const conteoHoy =
-    calcularConteoPrioridadHoy_(
-      nombre,
-      ticketsBase,
-      seguimiento
-    );
-
-  const disponible =
-    usuario.activo &&
-    usuario.habilitado &&
-    revisionBase.length === 0 &&
-    seguimientoBloqueante.length === 0;
-
-  let nivel = 'disponible';
-  let texto =
     `Disponible · Prioridad ${conteoHoy.prioridad}`;
 
   let motivo =
@@ -4682,26 +4487,20 @@ function calcularEstadoOperativoAsesor(
   if (!usuario.activo) {
     nivel = 'bloqueado';
     texto = 'Usuario inactivo';
-    motivo =
-      'El usuario no está activo';
+    motivo = 'El usuario no esta activo';
 
-  } else if (
-    !usuario.habilitado
-  ) {
+  } else if (!usuario.habilitado) {
     nivel = 'bloqueado';
     texto = 'No participa';
-    motivo =
-      'Asignación deshabilitada';
+    motivo = 'Asignacion deshabilitada';
 
   } else if (
     revisionBase.length > 0
   ) {
     nivel = 'ocupado';
-    texto =
-      'En revisión atendiendo';
-
+    texto = 'En revision atendiendo';
     motivo =
-      `${revisionBase.length} ticket(s) En revisión en BASE_TICKETS`;
+      `${revisionBase.length} ticket(s) En revision en BASE_TICKETS`;
 
   } else if (
     seguimientoBloqueante.length > 0
@@ -4725,81 +4524,54 @@ function calcularEstadoOperativoAsesor(
         'SEGUIMIENTO'
       )
     ) {
-      texto =
-        'En seguimiento';
+      texto = 'En seguimiento';
 
     } else if (
       detalles.includes(
-        'EN ESPERA'
+        'DERIVADO'
       )
     ) {
-      texto =
-        'En espera';
+      texto = 'Derivado en bandeja';
 
     } else if (
       detalles.includes(
         'ATENDIDO'
       )
     ) {
-      texto =
-        'Atendido en bandeja';
+      texto = 'Atendido en bandeja';
 
     } else if (
       detalles.includes(
         'CERRADO'
       )
     ) {
-      texto =
-        'Cerrado en bandeja';
+      texto = 'Cerrado en bandeja';
 
     } else {
-      texto =
-        'No disponible';
+      texto = 'No disponible';
     }
 
     motivo =
-      `${seguimientoBloqueante.length} ticket(s) activo(s) en SEGUIMIENTO`;
+      `${seguimientoBloqueante.length} ticket(s) bloqueante(s) en SEGUIMIENTO`;
   }
 
   const ticketsAfectados = [
     ...revisionBase.map(ticket => ({
-      fuente:
-        'BASE_TICKETS',
-
-      numero:
-        ticket.numero,
-
-      ticket:
-        ticket.ticket,
-
-      alumno:
-        ticket.alumno,
-
-      detalle:
-        ticket.detalle,
-
-      responsable:
-        ticket.responsable
+      fuente: 'BASE_TICKETS',
+      numero: ticket.numero,
+      ticket: ticket.ticket,
+      alumno: ticket.alumno,
+      detalle: ticket.detalle,
+      responsable: ticket.responsable
     })),
 
     ...seguimientoBloqueante.map(item => ({
-      fuente:
-        'SEGUIMIENTO',
-
-      numero:
-        '',
-
-      ticket:
-        item.ticket,
-
-      alumno:
-        item.alumno,
-
-      detalle:
-        item.detalle,
-
-      responsable:
-        item.responsableActual
+      fuente: 'SEGUIMIENTO',
+      numero: '',
+      ticket: item.ticket,
+      alumno: item.alumno,
+      detalle: item.detalle,
+      responsable: item.responsableActual
     }))
   ];
 
@@ -4818,16 +4590,13 @@ function calcularEstadoOperativoAsesor(
 
     disponible,
 
-    /*
-     * Este valor es el que aparece
-     * como "activo(s) hoy" en el panel.
-     *
-     * Ya no usa el total histórico.
-     */
     totalAtencionesHoy:
       conteoHoy.totalHoy,
 
     asignadosHoy:
+      conteoHoy.totalHoy,
+
+    prioridad:
       conteoHoy.totalHoy,
 
     recibidosHoy:
@@ -4836,8 +4605,11 @@ function calcularEstadoOperativoAsesor(
     atendidosHoy:
       conteoHoy.atendidosHoy,
 
-    prioridad:
-      conteoHoy.prioridad,
+    asignacionesRealesHoy:
+      conteoHoy.asignacionesRealesHoy,
+
+    fuentePrioridad:
+      conteoHoy.fuentePrioridad,
 
     revision:
       revisionBase.length,
@@ -4860,13 +4632,100 @@ function calcularEstadoOperativoAsesor(
 }
 
 
+function compararPrioridadOperativa_(
+  a,
+  b
+) {
+  const disponibleA =
+    Boolean(
+      a &&
+      a.activo &&
+      a.habilitado &&
+      a.disponible
+    );
+
+  const disponibleB =
+    Boolean(
+      b &&
+      b.activo &&
+      b.habilitado &&
+      b.disponible
+    );
+
+  if (
+    disponibleA !==
+    disponibleB
+  ) {
+    return disponibleA
+      ? -1
+      : 1;
+  }
+
+  const prioridadA =
+    Number(
+      a && a.prioridad || 0
+    );
+
+  const prioridadB =
+    Number(
+      b && b.prioridad || 0
+    );
+
+  if (
+    prioridadA !==
+    prioridadB
+  ) {
+    return prioridadA - prioridadB;
+  }
+
+  const fechaA =
+    parsearFechaFlexible(
+      a && a.ultimaAsignacion
+    );
+
+  const fechaB =
+    parsearFechaFlexible(
+      b && b.ultimaAsignacion
+    );
+
+  const tiempoA =
+    fechaA
+      ? fechaA.getTime()
+      : 0;
+
+  const tiempoB =
+    fechaB
+      ? fechaB.getTime()
+      : 0;
+
+  return (
+    tiempoA - tiempoB ||
+    Number(
+      a && a.orden || 999
+    ) -
+      Number(
+        b && b.orden || 999
+      ) ||
+    String(
+      a && a.asesor || ''
+    ).localeCompare(
+      String(
+        b && b.asesor || ''
+      ),
+      'es'
+    )
+  );
+}
+
+
 /* =========================================================
    DISPONIBILIDAD GENERAL
 ========================================================= */
 
 function obtenerDisponibilidad(
   ticketsPrecargados,
-  seguimientoPrecargado
+  seguimientoPrecargado,
+  historialPrecargado
 ) {
   const ticketsBase =
     Array.isArray(
@@ -4883,19 +4742,30 @@ function obtenerDisponibilidad(
       ? seguimientoPrecargado
       : leerSeguimientoOperativo_();
 
+  const historial =
+    Array.isArray(
+      historialPrecargado
+    )
+      ? historialPrecargado
+      : leerHistorialAsignacionesPrioridad_();
+
   return obtenerUsuariosAsignacion()
     .map(usuario =>
       calcularEstadoOperativoAsesor(
         usuario,
         ticketsBase,
-        seguimiento
+        seguimiento,
+        historial
       )
+    )
+    .sort(
+      compararPrioridadOperativa_
     );
 }
 
 
 /* =========================================================
-   SELECCIÓN DEL SIGUIENTE ASESOR
+   SELECCION DEL SIGUIENTE ASESOR
 ========================================================= */
 
 function seleccionarSiguienteAsesor(
@@ -4910,77 +4780,26 @@ function seleccionarSiguienteAsesor(
       : obtenerDisponibilidad();
 
   const elegibles =
-    disponibilidad.filter(item =>
-      item.activo &&
-      item.habilitado &&
-      item.disponible &&
-      (
-        !excluirAsesor ||
-        normalizar(
-          item.asesor
-        ) !==
-        normalizar(
-          excluirAsesor
-        )
-      )
-    );
-
-  if (!elegibles.length) {
-    return null;
-  }
-
-  const minimoHoy =
-    Math.min(
-      ...elegibles.map(item =>
-        Number(
-          item.asignadosHoy || 0
-        )
-      )
-    );
-
-  const menorPrioridad =
-    elegibles.filter(item =>
-      Number(
-        item.asignadosHoy || 0
-      ) === minimoHoy
-    );
-
-  menorPrioridad.sort(
-    (a, b) => {
-      const fechaA =
-        parsearFechaFlexible(
-          a.ultimaAsignacion
-        );
-
-      const fechaB =
-        parsearFechaFlexible(
-          b.ultimaAsignacion
-        );
-
-      const tiempoA =
-        fechaA
-          ? fechaA.getTime()
-          : 0;
-
-      const tiempoB =
-        fechaB
-          ? fechaB.getTime()
-          : 0;
-
-      return (
-        tiempoA -
-          tiempoB ||
-        Number(
-          a.orden || 999
-        ) -
-          Number(
-            b.orden || 999
+    disponibilidad
+      .filter(item =>
+        item.activo &&
+        item.habilitado &&
+        item.disponible &&
+        (
+          !excluirAsesor ||
+          normalizar(
+            item.asesor
+          ) !==
+          normalizar(
+            excluirAsesor
           )
+        )
+      )
+      .sort(
+        compararPrioridadOperativa_
       );
-    }
-  );
 
-  return menorPrioridad[0];
+  return elegibles[0] || null;
 }
 
 

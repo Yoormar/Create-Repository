@@ -6,8 +6,7 @@
    - DERIVADO y CERRADO no cuentan
    - ESTADO TICKET CERRADO tampoco cuenta como recibido
    - SEGUIMIENTO no suma prioridad, solo informa disponibilidad
-   - Evita contar como "hoy" tickets historicos cuyo FECHA INICIO
-     fue rellenado posteriormente, exigiendo evidencia real de inicio
+   - Usa BASE_TICKETS + HISTORIAL_ASIGNACIONES como fuente unica
    - Orden de asignacion: menor prioridad diaria primero
    - Asignacion automatica ZENDESK + DYNAMIC
    - Dashboard superior sincronizado
@@ -19,84 +18,6 @@ const V12_VERSION_PRIORIDAD = '12.4';
 
 function v12EsOrigenAutomatico_(origen) {
   return V12_ORIGENES_AUTOMATICOS.includes(normalizar(origen));
-}
-
-function v12ClaveTicket_(ticket) {
-  const idTicket = limpiar(ticket && ticket.ticket);
-  if (idTicket) return `T:${idTicket}`;
-
-  const numero = limpiar(ticket && ticket.numero);
-  if (numero) return `N:${numero}`;
-
-  const dni = limpiar(ticket && ticket.dni);
-  const alumno = limpiar(ticket && ticket.alumno);
-
-  if (dni || alumno) {
-    return `D:${dni}|A:${alumno}|F:${ticket && ticket.rowNumber || ''}`;
-  }
-
-  return '';
-}
-
-function v12CuentaPorFechaInicio_(detalle) {
-  const d = normalizar(detalle);
-
-  if (!d) return false;
-
-  return ![
-    'ATENDIDO',
-    'DERIVADO',
-    'CERRADO'
-  ].includes(d);
-}
-
-/*
- * FECHA INICIO sigue siendo la regla principal.
- *
- * El problema detectado en BASE_TICKETS es que filas historicas
- * recibieron FECHA INICIO = hoy al ser editadas/importadas en bloque.
- * Por eso no basta con preguntar si FECHA INICIO es hoy.
- *
- * Regla anti-contaminacion:
- * - FECHA INICIO debe ser hoy.
- * - Si existe TIEMPO INICIO, tambien debe ser hoy.
- * - Si no existe TIEMPO INICIO, FECHA ACTUALIZACION debe ser hoy.
- * - Si no existe ninguna evidencia real de inicio/actualizacion hoy,
- *   NO se cuenta aunque FECHA INICIO haya sido rellenada con hoy.
- *
- * TIEMPO INICIO no sustituye FECHA INICIO como regla de prioridad;
- * solamente confirma que la fila realmente entro a operacion hoy.
- */
-function v12FechaInicioValidaHoy_(ticket, hoy) {
-  const fechaInicio =
-    ticket && (
-      ticket.fechaInicioRaw ||
-      ticket.fechaInicio
-    );
-
-  if (claveFecha(fechaInicio) !== hoy) {
-    return false;
-  }
-
-  const tiempoInicio =
-    ticket && (
-      ticket.tiempoInicioRaw ||
-      ticket.tiempoInicio
-    );
-
-  const claveTiempoInicio =
-    claveFecha(tiempoInicio);
-
-  if (claveTiempoInicio) {
-    return claveTiempoInicio === hoy;
-  }
-
-  const claveActualizacion =
-    claveFecha(
-      ticket && ticket.fechaActualizacion
-    );
-
-  return claveActualizacion === hoy;
 }
 
 /* =========================================================
@@ -115,114 +36,46 @@ function v12FechaInicioValidaHoy_(ticket, hoy) {
 
    4. EN REVISION / PENDIENTE / EN ESPERA / SEGUIMIENTO
       y cualquier otro detalle operativo
-      Cuenta solamente si FECHA INICIO es hoy.
+      Cuenta si FECHA INICIO es hoy Y existe asignacion real hoy
+      en HISTORIAL_ASIGNACIONES para ese ticket y asesor.
 
-   5. FECHA INICIO debe tener evidencia real del dia:
-      TIEMPO INICIO de hoy o, si no existe, FECHA ACTUALIZACION de hoy.
-      Esto evita contar filas historicas rellenadas masivamente.
-
-   6. La hoja SEGUIMIENTO NO suma tickets al conteo.
+   5. La hoja SEGUIMIENTO NO suma tickets al conteo.
       Solo sirve para disponibilidad/estado operativo.
 
-   7. Cada ticket se cuenta una sola vez.
+   6. Cada ticket se cuenta una sola vez.
 
-   8. PRIORIDAD = cantidad real contabilizada HOY.
+   7. PRIORIDAD = cantidad real contabilizada HOY, sin tope.
       No usa acumulado de tickets activos.
+
+   8. V12 usa exactamente calcularConteoPrioridadHoy_ de Codigo.gs.
+      Dashboard y asignacion usan la misma fuente.
 ========================================================= */
-function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
-  const hoy = claveFecha(new Date());
-  const recibidosHoy = new Set();
-  const atendidosHoy = new Set();
-
-  (ticketsBase || []).forEach(ticket => {
-    if (
-      normalizar(ticket.responsable) !==
-      normalizar(nombreAsesor)
-    ) {
-      return;
-    }
-
-    const clave = v12ClaveTicket_(ticket);
-    if (!clave) return;
-
-    const detalle = normalizar(ticket.detalle);
-    const estadoTicket = normalizar(ticket.estado);
-
-    /* ATENDIDO: solo FECHA FIN. */
-    if (detalle === 'ATENDIDO') {
-      const fechaFin =
-        ticket.fechaFinRaw ||
-        ticket.fechaFin;
-
-      if (claveFecha(fechaFin) === hoy) {
-        atendidosHoy.add(clave);
-      }
-
-      return;
-    }
-
-    /* DERIVADO / CERRADO: nunca cuentan como recibido. */
-    if (
-      detalle === 'DERIVADO' ||
-      detalle === 'CERRADO' ||
-      estadoTicket === 'CERRADO'
-    ) {
-      return;
-    }
-
-    /* Otros estados operativos: FECHA INICIO validada. */
-    if (!v12CuentaPorFechaInicio_(detalle)) {
-      return;
-    }
-
-    if (v12FechaInicioValidaHoy_(ticket, hoy)) {
-      recibidosHoy.add(clave);
-    }
-  });
-
-  const totalUnico = new Set([
-    ...recibidosHoy,
-    ...atendidosHoy
-  ]);
-
-  const totalHoy = totalUnico.size;
-
-  return {
-    recibidosHoy: recibidosHoy.size,
-    atendidosHoy: atendidosHoy.size,
-    totalHoy,
-    prioridad: totalHoy
-  };
+function calcularConteoPrioridadHoyV12_(
+  nombreAsesor,
+  ticketsBase,
+  historialAsignaciones
+) {
+  return calcularConteoPrioridadHoy_(
+    nombreAsesor,
+    ticketsBase,
+    historialAsignaciones
+  );
 }
 
 function calcularEstadoOperativoAsesorV12_(
   usuario,
   ticketsBase,
-  seguimiento
+  seguimiento,
+  historialAsignaciones
 ) {
   const estadoBase = calcularEstadoOperativoAsesor(
     usuario,
     ticketsBase,
-    seguimiento
+    seguimiento,
+    historialAsignaciones
   );
 
-  const conteo = calcularConteoPrioridadHoyV12_(
-    usuario.asesor,
-    ticketsBase
-  );
-
-  estadoBase.totalAtencionesHoy = conteo.totalHoy;
-  estadoBase.asignadosHoy = conteo.totalHoy;
-  estadoBase.recibidosHoy = conteo.recibidosHoy;
-  estadoBase.atendidosHoy = conteo.atendidosHoy;
-  estadoBase.prioridad = conteo.prioridad;
   estadoBase.versionPrioridad = V12_VERSION_PRIORIDAD;
-
-  if (estadoBase.disponible) {
-    estadoBase.texto = `Disponible · Prioridad ${conteo.prioridad}`;
-    estadoBase.motivo = `${conteo.totalHoy} ticket(s) contabilizado(s) hoy`;
-  }
-
   return estadoBase;
 }
 
@@ -273,12 +126,16 @@ function compararPrioridadV12_(a, b) {
 }
 
 function obtenerDisponibilidadV12_(ticketsBase, seguimiento) {
+  const historialAsignaciones =
+    leerHistorialAsignacionesPrioridad_();
+
   return obtenerUsuariosAsignacion()
     .map(usuario =>
       calcularEstadoOperativoAsesorV12_(
         usuario,
         ticketsBase,
-        seguimiento
+        seguimiento,
+        historialAsignaciones
       )
     )
     .sort(compararPrioridadV12_);
