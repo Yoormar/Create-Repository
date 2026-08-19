@@ -1,12 +1,12 @@
 /* =========================================================
-   SISTEMA OPERATIVO V12.4
+   SISTEMA OPERATIVO V12.5
    - Prioridad diaria segun regla definida para BASE_TICKETS
    - ATENDIDO cuenta por FECHA FIN del dia actual
    - Otros estados operativos cuentan por FECHA INICIO del dia actual
    - DERIVADO y CERRADO no cuentan
    - ESTADO TICKET CERRADO tampoco cuenta como recibido
    - SEGUIMIENTO no suma prioridad, solo informa disponibilidad
-   - Usa BASE_TICKETS + HISTORIAL_ASIGNACIONES como fuente unica
+   - Usa BASE_TICKETS como fuente unica del conteo diario
    - Orden de asignacion: menor prioridad diaria primero
    - Asignacion automatica ZENDESK + DYNAMIC
    - Dashboard superior sincronizado
@@ -14,7 +14,7 @@
 
 const V12_ORIGENES_AUTOMATICOS = ['ZENDESK', 'DYNAMIC'];
 const V12_ORIGENES_DASHBOARD = ['ZENDESK', 'PORTAL', 'DYNAMIC'];
-const V12_VERSION_PRIORIDAD = '12.4';
+const V12_VERSION_PRIORIDAD = '12.5';
 
 function v12EsOrigenAutomatico_(origen) {
   return V12_ORIGENES_AUTOMATICOS.includes(normalizar(origen));
@@ -23,7 +23,7 @@ function v12EsOrigenAutomatico_(origen) {
 /* =========================================================
    PRIORIDAD DEL DIA
 
-   REGLA V12.4
+   REGLA V12.5
 
    1. ATENDIDO
       Cuenta solamente si FECHA FIN es hoy.
@@ -36,8 +36,7 @@ function v12EsOrigenAutomatico_(origen) {
 
    4. EN REVISION / PENDIENTE / EN ESPERA / SEGUIMIENTO
       y cualquier otro detalle operativo
-      Cuenta si FECHA INICIO es hoy Y existe asignacion real hoy
-      en HISTORIAL_ASIGNACIONES para ese ticket y asesor.
+      Cuenta si FECHA INICIO es hoy.
 
    5. La hoja SEGUIMIENTO NO suma tickets al conteo.
       Solo sirve para disponibilidad/estado operativo.
@@ -126,16 +125,12 @@ function compararPrioridadV12_(a, b) {
 }
 
 function obtenerDisponibilidadV12_(ticketsBase, seguimiento) {
-  const historialAsignaciones =
-    leerHistorialAsignacionesPrioridad_();
-
   return obtenerUsuariosAsignacion()
     .map(usuario =>
       calcularEstadoOperativoAsesorV12_(
         usuario,
         ticketsBase,
-        seguimiento,
-        historialAsignaciones
+        seguimiento
       )
     )
     .sort(compararPrioridadV12_);

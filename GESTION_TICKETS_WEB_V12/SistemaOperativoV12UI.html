@@ -124,7 +124,7 @@
 
   const CLAVE_AUTO = 'GESTION_TICKETS_AUTO_V12';
   const CICLO_MS = 20 * 1000;
-  const VERSION_PRIORIDAD_V12 = '12.4';
+  const VERSION_PRIORIDAD_V12 = '12.5';
 
   let procesando = false;
   let temporizadorAuto = null;
@@ -186,10 +186,10 @@
   }
 
   function mostrarErrorOperativoV12(mensaje) {
-    const texto = mensaje || 'No se pudo cargar la prioridad diaria V12.4';
+    const texto = mensaje || 'No se pudo cargar la prioridad diaria V12.5';
 
     actualizarEstadoVersionV12(false, texto);
-    console.error('[V12.4]', texto);
+    console.error('[V12.5]', texto);
 
     if (typeof mostrarMensaje === 'function') {
       mostrarMensaje('mensajeDashboard', texto, 'error');
@@ -238,8 +238,8 @@
   /*
    * MUY IMPORTANTE:
    * El dashboard antiguo tambien llama pintarDisponibilidadAsesores.
-   * V12.4 solo cambia el texto cuando las filas vienen realmente
-   * de obtenerDashboardOperativoV12 y traen versionPrioridad=12.4.
+   * V12.5 solo cambia el texto cuando las filas vienen realmente
+   * de obtenerDashboardOperativoV12 y traen versionPrioridad=12.5.
    * Asi evitamos disfrazar acumulados antiguos como "tickets de hoy".
    */
   function instalarPrioridadDiariaUIV12() {
@@ -311,7 +311,7 @@
             }
           });
 
-        /* Respeta exactamente el orden enviado por V12.4. */
+        /* Respeta exactamente el orden enviado por V12.5. */
         reordenarTarjetasV12(filas);
 
         return resultado;
@@ -550,13 +550,13 @@
 
     if (!respuestaEsPrioridadV12(resultado)) {
       mostrarErrorOperativoV12(
-        'La implementación cargada no está devolviendo prioridad V12.4. Revisa que los dos archivos V12 estén en la misma versión.'
+        'La implementación cargada no está devolviendo prioridad V12.5. Revisa que los dos archivos V12 estén en la misma versión.'
       );
       return;
     }
 
     ultimaRespuesta = resultado;
-    actualizarEstadoVersionV12(true, 'Prioridad diaria V12.4 activa');
+    actualizarEstadoVersionV12(true, 'Prioridad diaria V12.5 activa');
     asegurarDynamicV12();
     asegurarAutomaticoV12();
     instalarPrioridadDiariaUIV12();
@@ -654,7 +654,7 @@
       .withSuccessHandler(resultado => {
         if (!resultado?.ok) {
           mostrarErrorOperativoV12(
-            resultado?.message || 'La consulta V12.4 respondió con error'
+            resultado?.message || 'La consulta V12.5 respondió con error'
           );
           return;
         }

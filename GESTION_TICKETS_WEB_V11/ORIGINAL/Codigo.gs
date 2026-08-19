@@ -4064,14 +4064,10 @@ function crearClaveTicketPrioridad_(
 ========================================================= */
 
 /*
- * FUENTE UNICA DE VERDAD PARA "RECIBIDOS HOY":
- *
- * - BASE_TICKETS conserva el estado actual del ticket.
- * - HISTORIAL_ASIGNACIONES confirma una asignacion real.
- * - FECHA INICIO define el dia operativo del ticket.
- *
- * Esto evita contar como recibidos los registros historicos que
- * fueron importados/editados hoy y recibieron FECHA INICIO en bloque.
+ * HISTORIAL_ASIGNACIONES se conserva para la rotacion y auditoria.
+ * No participa en el conteo diario: la fuente del conteo es
+ * exclusivamente BASE_TICKETS, usando FECHA INICIO o FECHA FIN
+ * segun el detalle del ticket.
  */
 function leerHistorialAsignacionesPrioridad_() {
   const hoja =
@@ -4250,9 +4246,7 @@ function obtenerAsignacionesRealesHoy_(
  *    No cuentan como recibido.
  *
  * 3. Otros estados operativos:
- *    - FECHA INICIO debe ser hoy.
- *    - Debe existir una asignacion real de hoy en
- *      HISTORIAL_ASIGNACIONES para ese mismo ticket y asesor.
+ *    Cuentan cuando FECHA INICIO = hoy.
  *
  * 4. SEGUIMIENTO:
  *    La hoja SEGUIMIENTO no suma prioridad.
@@ -4267,12 +4261,6 @@ function calcularConteoPrioridadHoy_(
   const hoy =
     claveFecha(
       new Date()
-    );
-
-  const asignacionesRealesHoy =
-    obtenerAsignacionesRealesHoy_(
-      nombreAsesor,
-      historialPrecargado
     );
 
   const recibidosHoy =
@@ -4364,19 +4352,9 @@ function calcularConteoPrioridadHoy_(
         return;
       }
 
-      /*
-       * Confirmacion de recepcion real.
-       * Sin una asignacion real registrada hoy, no suma prioridad.
-       */
-      if (
-        asignacionesRealesHoy.has(
-          clave
-        )
-      ) {
-        recibidosHoy.add(
-          clave
-        );
-      }
+      recibidosHoy.add(
+        clave
+      );
     });
 
   const totalUnico =
@@ -4395,8 +4373,7 @@ function calcularConteoPrioridadHoy_(
     atendidosHoy:
       atendidosHoy.size,
 
-    asignacionesRealesHoy:
-      asignacionesRealesHoy.size,
+    asignacionesRealesHoy: 0,
 
     totalHoy,
 
@@ -4404,7 +4381,7 @@ function calcularConteoPrioridadHoy_(
       totalHoy,
 
     fuentePrioridad:
-      'BASE_TICKETS + HISTORIAL_ASIGNACIONES'
+      'BASE_TICKETS: FECHA INICIO / FECHA FIN'
   };
 }
 
@@ -4742,20 +4719,12 @@ function obtenerDisponibilidad(
       ? seguimientoPrecargado
       : leerSeguimientoOperativo_();
 
-  const historial =
-    Array.isArray(
-      historialPrecargado
-    )
-      ? historialPrecargado
-      : leerHistorialAsignacionesPrioridad_();
-
   return obtenerUsuariosAsignacion()
     .map(usuario =>
       calcularEstadoOperativoAsesor(
         usuario,
         ticketsBase,
-        seguimiento,
-        historial
+        seguimiento
       )
     )
     .sort(
