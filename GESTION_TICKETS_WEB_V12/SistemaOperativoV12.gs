@@ -1,16 +1,19 @@
 /* =========================================================
-   SISTEMA OPERATIVO V12
-   - Prioridad diaria segun regla original de BASE_TICKETS
-   - ATENDIDO cuenta por FECHA FIN
-   - Otros estados operativos cuentan por FECHA INICIO
+   SISTEMA OPERATIVO V12.4
+   - Prioridad diaria segun regla definida para BASE_TICKETS
+   - ATENDIDO cuenta por FECHA FIN del dia actual
+   - Otros estados operativos cuentan por FECHA INICIO del dia actual
    - DERIVADO y CERRADO no cuentan
-   - SEGUIMIENTO no suma prioridad, solo disponibilidad
+   - ESTADO TICKET CERRADO tampoco cuenta como recibido
+   - SEGUIMIENTO no suma prioridad, solo informa disponibilidad
+   - Orden de asignacion: menor prioridad diaria primero
    - Asignacion automatica ZENDESK + DYNAMIC
    - Dashboard superior sincronizado
 ========================================================= */
 
 const V12_ORIGENES_AUTOMATICOS = ['ZENDESK', 'DYNAMIC'];
 const V12_ORIGENES_DASHBOARD = ['ZENDESK', 'PORTAL', 'DYNAMIC'];
+const V12_VERSION_PRIORIDAD = '12.4';
 
 function v12EsOrigenAutomatico_(origen) {
   return V12_ORIGENES_AUTOMATICOS.includes(normalizar(origen));
@@ -48,25 +51,28 @@ function v12CuentaPorFechaInicio_(detalle) {
 /* =========================================================
    PRIORIDAD DEL DIA
 
-   REGLA V12.3 - recupera la regla original del sistema:
+   REGLA V12.4
 
    1. ATENDIDO
-      Cuenta si FECHA FIN es hoy.
+      Cuenta solamente si FECHA FIN es hoy.
 
    2. DERIVADO
       No cuenta.
 
    3. CERRADO
-      No cuenta.
+      No cuenta, ya sea por DETALLE o ESTADO TICKET.
 
    4. EN REVISION / PENDIENTE / EN ESPERA / SEGUIMIENTO
       y cualquier otro detalle operativo
-      Cuenta si FECHA INICIO es hoy.
+      Cuenta solamente si FECHA INICIO es hoy.
 
    5. La hoja SEGUIMIENTO NO suma tickets al conteo.
       Solo sirve para disponibilidad/estado operativo.
 
    6. Cada ticket se cuenta una sola vez.
+
+   7. PRIORIDAD = cantidad real contabilizada HOY.
+      No usa acumulado de tickets activos.
 ========================================================= */
 function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
   const hoy = claveFecha(new Date());
@@ -85,6 +91,7 @@ function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
     if (!clave) return;
 
     const detalle = normalizar(ticket.detalle);
+    const estadoTicket = normalizar(ticket.estado);
 
     /* ATENDIDO: solo FECHA FIN. */
     if (detalle === 'ATENDIDO') {
@@ -99,15 +106,16 @@ function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
       return;
     }
 
-    /* DERIVADO / CERRADO: no cuentan. */
+    /* DERIVADO / CERRADO: nunca cuentan como recibido. */
     if (
       detalle === 'DERIVADO' ||
-      detalle === 'CERRADO'
+      detalle === 'CERRADO' ||
+      estadoTicket === 'CERRADO'
     ) {
       return;
     }
 
-    /* Otros estados operativos: FECHA INICIO. */
+    /* Otros estados operativos: solamente FECHA INICIO. */
     if (!v12CuentaPorFechaInicio_(detalle)) {
       return;
     }
@@ -142,8 +150,8 @@ function calcularEstadoOperativoAsesorV12_(
   seguimiento
 ) {
   /*
-   * La disponibilidad sigue usando exactamente las reglas
-   * existentes. Solo reemplazamos el conteo/prioridad diaria.
+   * Conserva las reglas existentes de disponibilidad.
+   * V12 reemplaza exclusivamente el conteo/prioridad diaria.
    */
   const estadoBase = calcularEstadoOperativoAsesor(
     usuario,
@@ -161,6 +169,7 @@ function calcularEstadoOperativoAsesorV12_(
   estadoBase.recibidosHoy = conteo.recibidosHoy;
   estadoBase.atendidosHoy = conteo.atendidosHoy;
   estadoBase.prioridad = conteo.prioridad;
+  estadoBase.versionPrioridad = V12_VERSION_PRIORIDAD;
 
   if (estadoBase.disponible) {
     estadoBase.texto = `Disponible · Prioridad ${conteo.prioridad}`;
@@ -168,6 +177,52 @@ function calcularEstadoOperativoAsesorV12_(
   }
 
   return estadoBase;
+}
+
+/* =========================================================
+   ORDEN DE PRIORIDAD
+
+   ENTRE ASESORES DISPONIBLES:
+   1. Menor cantidad contabilizada hoy.
+   2. Ultima asignacion mas antigua.
+   3. Orden configurado.
+   4. Nombre.
+
+   Los no disponibles se muestran despues.
+========================================================= */
+function compararPrioridadV12_(a, b) {
+  const disponibleA = Boolean(
+    a && a.activo && a.habilitado && a.disponible
+  );
+  const disponibleB = Boolean(
+    b && b.activo && b.habilitado && b.disponible
+  );
+
+  if (disponibleA !== disponibleB) {
+    return disponibleA ? -1 : 1;
+  }
+
+  const prioridadA = Number(a && a.prioridad || 0);
+  const prioridadB = Number(b && b.prioridad || 0);
+
+  if (prioridadA !== prioridadB) {
+    return prioridadA - prioridadB;
+  }
+
+  const fechaA = parsearFechaFlexible(a && a.ultimaAsignacion);
+  const fechaB = parsearFechaFlexible(b && b.ultimaAsignacion);
+
+  const tiempoA = fechaA ? fechaA.getTime() : 0;
+  const tiempoB = fechaB ? fechaB.getTime() : 0;
+
+  return (
+    tiempoA - tiempoB ||
+    Number(a && a.orden || 999) - Number(b && b.orden || 999) ||
+    String(a && a.asesor || '').localeCompare(
+      String(b && b.asesor || ''),
+      'es'
+    )
+  );
 }
 
 function obtenerDisponibilidadV12_(ticketsBase, seguimiento) {
@@ -178,7 +233,8 @@ function obtenerDisponibilidadV12_(ticketsBase, seguimiento) {
         ticketsBase,
         seguimiento
       )
-    );
+    )
+    .sort(compararPrioridadV12_);
 }
 
 function seleccionarSiguienteAsesorV12_(
@@ -194,32 +250,10 @@ function seleccionarSiguienteAsesorV12_(
         !excluirAsesor ||
         normalizar(item.asesor) !== normalizar(excluirAsesor)
       )
-    );
+    )
+    .sort(compararPrioridadV12_);
 
-  if (!elegibles.length) return null;
-
-  /* Menor cantidad contabilizada hoy primero. */
-  const minimo = Math.min(
-    ...elegibles.map(item => Number(item.totalAtencionesHoy || 0))
-  );
-
-  const candidatos = elegibles
-    .filter(item => Number(item.totalAtencionesHoy || 0) === minimo)
-    .sort((a, b) => {
-      const fechaA = parsearFechaFlexible(a.ultimaAsignacion);
-      const fechaB = parsearFechaFlexible(b.ultimaAsignacion);
-
-      const tiempoA = fechaA ? fechaA.getTime() : 0;
-      const tiempoB = fechaB ? fechaB.getTime() : 0;
-
-      return (
-        tiempoA - tiempoB ||
-        Number(a.orden || 999) - Number(b.orden || 999) ||
-        String(a.asesor || '').localeCompare(String(b.asesor || ''), 'es')
-      );
-    });
-
-  return candidatos[0] || null;
+  return elegibles[0] || null;
 }
 
 function obtenerPendientesV12_(tickets) {
@@ -523,6 +557,7 @@ function obtenerDashboardOperativoV12(token, filtros) {
 
     return {
       ok: true,
+      versionPrioridad: V12_VERSION_PRIORIDAD,
 
       resumenGeneral: {
         activos: activosGeneral,
