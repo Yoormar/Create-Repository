@@ -6,6 +6,8 @@
    - DERIVADO y CERRADO no cuentan
    - ESTADO TICKET CERRADO tampoco cuenta como recibido
    - SEGUIMIENTO no suma prioridad, solo informa disponibilidad
+   - Evita contar como "hoy" tickets historicos cuyo FECHA INICIO
+     fue rellenado posteriormente, validando el inicio real del ticket
    - Orden de asignacion: menor prioridad diaria primero
    - Asignacion automatica ZENDESK + DYNAMIC
    - Dashboard superior sincronizado
@@ -48,6 +50,68 @@ function v12CuentaPorFechaInicio_(detalle) {
   ].includes(d);
 }
 
+/*
+ * FECHA INICIO sigue siendo la regla principal.
+ *
+ * Sin embargo, algunas filas historicas quedaron con FECHA INICIO
+ * rellenada posteriormente desde REGISTRO. Eso hacia que un asesor
+ * con decenas de tickets antiguos apareciera como si hubiese recibido
+ * todos esos tickets hoy.
+ *
+ * Para evitar ese falso positivo:
+ * - FECHA INICIO debe ser hoy.
+ * - Si existe TIEMPO INICIO y pertenece a un dia anterior,
+ *   el ticket es historico y no se cuenta como recibido hoy.
+ * - Si no existe TIEMPO INICIO, se usa FECHA ACTUALIZACION como
+ *   comprobacion secundaria. Si tambien es anterior, no cuenta.
+ *
+ * TIEMPO INICIO NO reemplaza a FECHA INICIO como regla de prioridad;
+ * solo evita contabilizar un FECHA INICIO contaminado/historico.
+ */
+function v12FechaInicioValidaHoy_(ticket, hoy) {
+  const fechaInicio =
+    ticket && (
+      ticket.fechaInicioRaw ||
+      ticket.fechaInicio
+    );
+
+  if (claveFecha(fechaInicio) !== hoy) {
+    return false;
+  }
+
+  const tiempoInicio =
+    ticket && (
+      ticket.tiempoInicioRaw ||
+      ticket.tiempoInicio
+    );
+
+  const claveTiempoInicio =
+    claveFecha(tiempoInicio);
+
+  if (
+    claveTiempoInicio &&
+    claveTiempoInicio !== hoy
+  ) {
+    return false;
+  }
+
+  if (!claveTiempoInicio) {
+    const claveActualizacion =
+      claveFecha(
+        ticket && ticket.fechaActualizacion
+      );
+
+    if (
+      claveActualizacion &&
+      claveActualizacion !== hoy
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /* =========================================================
    PRIORIDAD DEL DIA
 
@@ -66,12 +130,16 @@ function v12CuentaPorFechaInicio_(detalle) {
       y cualquier otro detalle operativo
       Cuenta solamente si FECHA INICIO es hoy.
 
-   5. La hoja SEGUIMIENTO NO suma tickets al conteo.
+   5. Si FECHA INICIO fue rellenada posteriormente en un ticket
+      historico, se descarta usando TIEMPO INICIO / FECHA ACTUALIZACION
+      solamente como validacion anti-contaminacion.
+
+   6. La hoja SEGUIMIENTO NO suma tickets al conteo.
       Solo sirve para disponibilidad/estado operativo.
 
-   6. Cada ticket se cuenta una sola vez.
+   7. Cada ticket se cuenta una sola vez.
 
-   7. PRIORIDAD = cantidad real contabilizada HOY.
+   8. PRIORIDAD = cantidad real contabilizada HOY.
       No usa acumulado de tickets activos.
 ========================================================= */
 function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
@@ -120,11 +188,7 @@ function calcularConteoPrioridadHoyV12_(nombreAsesor, ticketsBase) {
       return;
     }
 
-    const fechaInicio =
-      ticket.fechaInicioRaw ||
-      ticket.fechaInicio;
-
-    if (claveFecha(fechaInicio) === hoy) {
+    if (v12FechaInicioValidaHoy_(ticket, hoy)) {
       recibidosHoy.add(clave);
     }
   });
@@ -292,8 +356,49 @@ function v12AsignarTicket_(base, ticket, asesor, usuarioEjecutor) {
   );
 
   /*
+   * FECHA INICIO representa el dia real en que el ticket entra
+   * a atencion/asignacion. Se registra directamente en V12 para
+   * no depender del rellenado masivo desde REGISTRO.
+   */
+  const columnaFechaInicio =
+    base.mapa[normalizar('Fecha inicio')];
+
+  if (
+    columnaFechaInicio &&
+    !limpiar(ticket.fechaInicio)
+  ) {
+    const fechaInicioOperativa =
+      calcularFechaInicioOperativa_(ahora) ||
+      new Date(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        ahora.getDate()
+      );
+
+    escribirPorEncabezado_(
+      base.hoja,
+      base.mapa,
+      ticket.rowNumber,
+      'Fecha inicio',
+      fechaInicioOperativa
+    );
+
+    base.hoja
+      .getRange(
+        ticket.rowNumber,
+        columnaFechaInicio
+      )
+      .setNumberFormat('dd/MM/yyyy');
+
+    ticket.fechaInicio =
+      etiquetaFecha(fechaInicioOperativa);
+    ticket.fechaInicioRaw =
+      fechaInicioOperativa;
+  }
+
+  /*
    * TIEMPO INICIO se mantiene para medicion de tiempos.
-   * La prioridad NO usa este campo.
+   * La prioridad NO usa este campo como fecha principal.
    */
   if (!limpiar(ticket.tiempoInicio)) {
     escribirPorEncabezado_(
