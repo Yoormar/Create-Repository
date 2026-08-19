@@ -65,11 +65,6 @@
   background: #7c3aed !important;
 }
 
-/*
- * La fila original fue diseñada para cuatro controles.
- * V12 tiene selector ticket, selector asesor, asignar,
- * Automatico, contador Z/D y procesar pendientes.
- */
 #siguienteAsesorDashboard .asignacion-controles {
   grid-template-columns:
     minmax(280px, 2fr)
@@ -129,8 +124,8 @@
 
   function numeroDiarioV12(asesor) {
     const valor = Number(
-      asesor?.asignadosHoy ??
       asesor?.totalAtencionesHoy ??
+      asesor?.asignadosHoy ??
       0
     );
 
@@ -140,8 +135,8 @@
   }
 
   /*
-   * El Scripts.html original convierte prioridad 0 en 1.
-   * Para la rotacion diaria V12, 0 debe seguir siendo 0.
+   * La prioridad visual es exactamente el total contabilizado
+   * hoy. Un asesor con 0 debe mostrar Prioridad 0.
    */
   function instalarPrioridadDiariaUIV12() {
     window.obtenerPrioridadAsesorUI = function (asesor) {
@@ -156,7 +151,6 @@
     ) {
       const nuevo = function (filas) {
         const resultado = anterior.apply(this, arguments);
-
         const porAsesor = new Map();
 
         (filas || []).forEach(fila => {
@@ -171,9 +165,7 @@
         });
 
         document
-          .querySelectorAll(
-            '#listaDisponibilidadAsesores .asesor-info'
-          )
+          .querySelectorAll('#listaDisponibilidadAsesores .asesor-info')
           .forEach(boton => {
             const clave = String(boton.dataset.asesor || '')
               .normalize('NFD')
@@ -192,7 +184,7 @@
             const seguimiento = Number(fila.seguimiento || 0);
 
             detalle.textContent =
-              `${cantidad} ticket(s) hoy · ` +
+              `${cantidad} ticket(s) contabilizado(s) hoy · ` +
               `Prioridad ${prioridad} · ` +
               `${revision} revisión · ` +
               `${seguimiento} seguimiento`;
@@ -434,9 +426,18 @@
     asegurarAutomaticoV12();
     instalarPrioridadDiariaUIV12();
 
+    const resumenGeneral = resultado.resumenGeneral || {};
+
     if (typeof setText === 'function') {
-      setText('dashAtendidosDynamic', Number(resultado.atendidosDynamic || 0));
-      setText('dashAsesorDynamic', Number(resultado.plataformaAsesor?.dynamic || 0));
+      /*
+       * V12 sobrescribe todos los KPI relacionados para evitar
+       * que queden mezclados con la respuesta antigua.
+       */
+      setText('dashActivos', Number(resumenGeneral.activos || 0));
+      setText('dashAtendidosZendesk', Number(resumenGeneral.atendidosZendesk || 0));
+      setText('dashAtendidosPortal', Number(resumenGeneral.atendidosPortal || 0));
+      setText('dashAtendidosDynamic', Number(resumenGeneral.atendidosDynamic || 0));
+      setText('dashTotalAtendidos', Number(resumenGeneral.totalAtendidos || 0));
 
       const disponibles = Number(resultado.disponibles || 0);
       setText(
@@ -445,7 +446,29 @@
       );
     }
 
-    const plataforma = resultado.plataformaAsesor || {};
+    const filtrosActuales = filtrosV12();
+    const esGlobal =
+      !filtrosActuales.asesor ||
+      filtrosActuales.asesor === '__GLOBAL__';
+
+    /*
+     * En vista global, "Atendidos por plataforma" usa exactamente
+     * los mismos números que los KPI superiores.
+     */
+    const plataforma = esGlobal
+      ? {
+          zendesk: Number(resumenGeneral.atendidosZendesk || 0),
+          portal: Number(resumenGeneral.atendidosPortal || 0),
+          dynamic: Number(resumenGeneral.atendidosDynamic || 0)
+        }
+      : (resultado.plataformaAsesor || {});
+
+    if (typeof setText === 'function') {
+      setText('dashAsesorZendesk', Number(plataforma.zendesk || 0));
+      setText('dashAsesorPortal', Number(plataforma.portal || 0));
+      setText('dashAsesorDynamic', Number(plataforma.dynamic || 0));
+    }
+
     const maximo = Math.max(
       Number(plataforma.zendesk || 0),
       Number(plataforma.portal || 0),
@@ -453,7 +476,18 @@
       1
     );
 
+    const barraZendesk = v12('barraAsesorZendesk');
+    const barraPortal = v12('barraAsesorPortal');
     const barraDynamic = v12('barraAsesorDynamic');
+
+    if (barraZendesk) {
+      barraZendesk.style.width = `${Number(plataforma.zendesk || 0) / maximo * 100}%`;
+    }
+
+    if (barraPortal) {
+      barraPortal.style.width = `${Number(plataforma.portal || 0) / maximo * 100}%`;
+    }
+
     if (barraDynamic) {
       barraDynamic.style.width = `${Number(plataforma.dynamic || 0) / maximo * 100}%`;
     }
