@@ -57,6 +57,25 @@
   pointer-events: none;
 }
 
+.v12-version-prioridad {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-left: 7px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #027a48;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.v12-version-prioridad.v12-error {
+  background: #fef3f2;
+  color: #b42318;
+}
+
 .tarjeta-kpi-dynamic {
   border-top-color: #7c3aed !important;
 }
@@ -105,6 +124,7 @@
 
   const CLAVE_AUTO = 'GESTION_TICKETS_AUTO_V12';
   const CICLO_MS = 20 * 1000;
+  const VERSION_PRIORIDAD_V12 = '12.4';
 
   let procesando = false;
   let temporizadorAuto = null;
@@ -122,25 +142,112 @@
       .toUpperCase() === 'ADMIN';
   }
 
+  function claveAsesorV12(valor) {
+    return String(valor || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toUpperCase();
+  }
+
+  function filaEsPrioridadV12(fila) {
+    return String(fila?.versionPrioridad || '') === VERSION_PRIORIDAD_V12;
+  }
+
+  function respuestaEsPrioridadV12(resultado) {
+    if (
+      String(resultado?.versionPrioridad || '') !== VERSION_PRIORIDAD_V12 ||
+      !Array.isArray(resultado?.disponibilidad)
+    ) {
+      return false;
+    }
+
+    return resultado.disponibilidad.every(fila => filaEsPrioridadV12(fila));
+  }
+
+  function actualizarEstadoVersionV12(ok, mensaje) {
+    const contador = v12('dashCantidadDisponibles');
+    if (!contador?.parentElement) return;
+
+    let chip = v12('estadoPrioridadV12');
+
+    if (!chip) {
+      chip = document.createElement('span');
+      chip.id = 'estadoPrioridadV12';
+      chip.className = 'v12-version-prioridad';
+      contador.insertAdjacentElement('afterend', chip);
+    }
+
+    chip.classList.toggle('v12-error', !ok);
+    chip.textContent = ok
+      ? `Prioridad V${VERSION_PRIORIDAD_V12}`
+      : `Error V${VERSION_PRIORIDAD_V12}`;
+    chip.title = mensaje || '';
+  }
+
+  function mostrarErrorOperativoV12(mensaje) {
+    const texto = mensaje || 'No se pudo cargar la prioridad diaria V12.4';
+
+    actualizarEstadoVersionV12(false, texto);
+    console.error('[V12.4]', texto);
+
+    if (typeof mostrarMensaje === 'function') {
+      mostrarMensaje('mensajeDashboard', texto, 'error');
+    }
+  }
+
   function numeroDiarioV12(asesor) {
-    const valor = Number(
-      asesor?.totalAtencionesHoy ??
-      asesor?.asignadosHoy ??
-      0
-    );
+    if (!filaEsPrioridadV12(asesor)) {
+      return null;
+    }
+
+    const valor = Number(asesor?.totalAtencionesHoy ?? 0);
 
     return Number.isFinite(valor) && valor >= 0
       ? valor
       : 0;
   }
 
+  function reordenarTarjetasV12(filas) {
+    const contenedor = v12('listaDisponibilidadAsesores');
+    if (!contenedor || !Array.isArray(filas)) return;
+
+    const orden = new Map();
+
+    filas.forEach((fila, indice) => {
+      orden.set(claveAsesorV12(fila?.asesor), indice);
+    });
+
+    Array.from(contenedor.children)
+      .sort((a, b) => {
+        const botonA = a.matches?.('.asesor-info')
+          ? a
+          : a.querySelector?.('.asesor-info');
+        const botonB = b.matches?.('.asesor-info')
+          ? b
+          : b.querySelector?.('.asesor-info');
+
+        const indiceA = orden.get(claveAsesorV12(botonA?.dataset?.asesor));
+        const indiceB = orden.get(claveAsesorV12(botonB?.dataset?.asesor));
+
+        return Number(indiceA ?? 9999) - Number(indiceB ?? 9999);
+      })
+      .forEach(elemento => contenedor.appendChild(elemento));
+  }
+
   /*
-   * La prioridad visual es exactamente el total contabilizado
-   * hoy. Un asesor con 0 debe mostrar Prioridad 0.
+   * MUY IMPORTANTE:
+   * El dashboard antiguo tambien llama pintarDisponibilidadAsesores.
+   * V12.4 solo cambia el texto cuando las filas vienen realmente
+   * de obtenerDashboardOperativoV12 y traen versionPrioridad=12.4.
+   * Asi evitamos disfrazar acumulados antiguos como "tickets de hoy".
    */
   function instalarPrioridadDiariaUIV12() {
     window.obtenerPrioridadAsesorUI = function (asesor) {
-      return numeroDiarioV12(asesor);
+      const valor = numeroDiarioV12(asesor);
+      return valor == null
+        ? Number(asesor?.prioridad ?? asesor?.asignadosHoy ?? 0)
+        : valor;
     };
 
     const anterior = window.pintarDisponibilidadAsesores;
@@ -150,37 +257,42 @@
       !anterior.__v12Diario
     ) {
       const nuevo = function (filas) {
+        const filasV12 =
+          Array.isArray(filas) &&
+          filas.length > 0 &&
+          filas.every(fila => filaEsPrioridadV12(fila));
+
         const resultado = anterior.apply(this, arguments);
+
+        /*
+         * Si la llamada proviene del dashboard antiguo,
+         * no tocamos cantidades ni prioridad.
+         */
+        if (!filasV12) {
+          return resultado;
+        }
+
         const porAsesor = new Map();
 
-        (filas || []).forEach(fila => {
-          porAsesor.set(
-            String(fila?.asesor || '')
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .trim()
-              .toUpperCase(),
-            fila
-          );
+        filas.forEach(fila => {
+          porAsesor.set(claveAsesorV12(fila?.asesor), fila);
         });
 
         document
           .querySelectorAll('#listaDisponibilidadAsesores .asesor-info')
           .forEach(boton => {
-            const clave = String(boton.dataset.asesor || '')
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .trim()
-              .toUpperCase();
-
-            const fila = porAsesor.get(clave);
+            const fila = porAsesor.get(
+              claveAsesorV12(boton.dataset.asesor)
+            );
             const detalle = boton.querySelector('small');
             const estadoVisual = boton.querySelector('em');
 
             if (!fila || !detalle) return;
 
             const cantidad = numeroDiarioV12(fila);
-            const prioridad = cantidad;
+            if (cantidad == null) return;
+
+            const prioridad = Number(fila.prioridad ?? cantidad);
             const revision = Number(fila.revision || 0);
             const seguimiento = Number(fila.seguimiento || 0);
 
@@ -190,11 +302,6 @@
               `${revision} revisión · ` +
               `${seguimiento} seguimiento`;
 
-            /*
-             * La función original también imprime la prioridad en
-             * la línea de estado. Se sincroniza después del pintado
-             * para evitar que conserve el límite histórico de 5.
-             */
             if (
               estadoVisual &&
               /^Disponible\b/i.test(estadoVisual.textContent || '')
@@ -203,6 +310,9 @@
                 `Disponible · Prioridad ${prioridad}`;
             }
           });
+
+        /* Respeta exactamente el orden enviado por V12.4. */
+        reordenarTarjetasV12(filas);
 
         return resultado;
       };
@@ -433,9 +543,20 @@
   }
 
   function pintarOperativoV12(resultado) {
-    if (!resultado?.ok) return;
+    if (!resultado?.ok) {
+      mostrarErrorOperativoV12(resultado?.message);
+      return;
+    }
+
+    if (!respuestaEsPrioridadV12(resultado)) {
+      mostrarErrorOperativoV12(
+        'La implementación cargada no está devolviendo prioridad V12.4. Revisa que los dos archivos V12 estén en la misma versión.'
+      );
+      return;
+    }
 
     ultimaRespuesta = resultado;
+    actualizarEstadoVersionV12(true, 'Prioridad diaria V12.4 activa');
     asegurarDynamicV12();
     asegurarAutomaticoV12();
     instalarPrioridadDiariaUIV12();
@@ -443,10 +564,6 @@
     const resumenGeneral = resultado.resumenGeneral || {};
 
     if (typeof setText === 'function') {
-      /*
-       * V12 sobrescribe todos los KPI relacionados para evitar
-       * que queden mezclados con la respuesta antigua.
-       */
       setText('dashActivos', Number(resumenGeneral.activos || 0));
       setText('dashAtendidosZendesk', Number(resumenGeneral.atendidosZendesk || 0));
       setText('dashAtendidosPortal', Number(resumenGeneral.atendidosPortal || 0));
@@ -465,10 +582,6 @@
       !filtrosActuales.asesor ||
       filtrosActuales.asesor === '__GLOBAL__';
 
-    /*
-     * En vista global, "Atendidos por plataforma" usa exactamente
-     * los mismos números que los KPI superiores.
-     */
     const plataforma = esGlobal
       ? {
           zendesk: Number(resumenGeneral.atendidosZendesk || 0),
@@ -539,10 +652,20 @@
 
     google.script.run
       .withSuccessHandler(resultado => {
-        if (!resultado?.ok) return;
+        if (!resultado?.ok) {
+          mostrarErrorOperativoV12(
+            resultado?.message || 'La consulta V12.4 respondió con error'
+          );
+          return;
+        }
+
         pintarOperativoV12(resultado);
       })
-      .withFailureHandler(() => {})
+      .withFailureHandler(error => {
+        mostrarErrorOperativoV12(
+          error?.message || 'No se pudo ejecutar obtenerDashboardOperativoV12'
+        );
+      })
       .obtenerDashboardOperativoV12(
         estado.token,
         filtrosV12()
